@@ -265,11 +265,6 @@ class _SimpleDocumentsScreenState extends State<SimpleDocumentsScreen>
             icon: const Icon(Icons.refresh),
             onPressed: _load,
           ),
-          IconButton(
-            tooltip: '설정',
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => context.push(RouteNames.settings),
-          ),
         ],
       ),
       body: SafeArea(child: _body(context)),
