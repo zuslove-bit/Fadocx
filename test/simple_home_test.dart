@@ -85,10 +85,10 @@ void main() {
     expect(v, contains('unzoomed'));
   });
 
-  test('문서 닫기 버튼과 북마크·메모 시트가 있다', () {
+  test('문서 닫기 버튼이 있고 하단 메뉴에는 북마크가 없다', () {
     final v = File('lib/features/viewer/presentation/screens/viewer_screen.dart').readAsStringSync();
     expect(v, contains("tooltip: '문서 닫기'"));
-    expect(v, contains('_showBookmarkMemoSheet'));
+    expect(v, isNot(contains('_showBookmarkMemoSheet')));
   });
 
   test('Word/PPT PDF 변환·엑셀 폴백·사이드 북마크/메모', () {
