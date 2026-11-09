@@ -86,6 +86,12 @@ List<Map<String, Object>> scanDocuments(List<String> roots) {
   return result;
 }
 
+/// 최상위 함수에서 Isolate를 만든다. State 객체(this)가 클로저에 딸려 가
+/// 전송 오류가 나는 일을 막기 위해서이다.
+Future<List<Map<String, Object>>> _scanInBackground(List<String> roots) {
+  return Isolate.run(() => scanDocuments(roots));
+}
+
 class _Doc {
   _Doc(this.path, this.name, this.ext, this.size, this.modified);
   final String path;
@@ -208,11 +214,17 @@ class _SimpleDocumentsScreenState extends State<SimpleDocumentsScreen>
         }
       } catch (_) {}
     }
+    // 백그라운드 Isolate로 먼저 시도하고, 실패하면 화면 스레드에서 직접 훑는다
+    // (예전에는 오류를 삼켜 빈 목록이 되었음).
     List<Map<String, Object>> raw;
     try {
-      raw = await Isolate.run(() => scanDocuments(roots));
+      raw = await _scanInBackground(roots);
     } catch (_) {
-      raw = const [];
+      try {
+        raw = scanDocuments(roots);
+      } catch (_) {
+        raw = const [];
+      }
     }
     final docs = raw
         .map((m) => _Doc(
