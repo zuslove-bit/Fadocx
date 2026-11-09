@@ -35,6 +35,7 @@ const Set<String> kDocumentExtensions = {
 /// 칩(필터) 이름 → 해당 확장자.
 const Map<String, Set<String>> _kFilters = {
   '전체': {},
+  '★': {},
   '한글': {'hwp', 'hwpx'},
   'PDF': {'pdf'},
   'Word': {'doc', 'docx'},
@@ -124,6 +125,9 @@ class _SimpleDocumentsScreenState extends State<SimpleDocumentsScreen>
   String _filter = '전체';
   // 사용자가 고른 폴더(없으면 폰 전체). Hive 'simple_prefs' 상자에 저장되어 다음 실행에도 유지된다.
   String? _folder;
+  // 정렬 방식: 'date'(최신순) / 'name'(이름순) / 'size'(큰 순). 즐겨찾기 경로 모음.
+  String _sort = 'date';
+  Set<String> _favs = <String>{};
 
   @override
   void initState() {
@@ -152,6 +156,8 @@ class _SimpleDocumentsScreenState extends State<SimpleDocumentsScreen>
       final box = await Hive.openBox('simple_prefs');
       final f = box.get('folder') as String?;
       if (f != null && Directory(f).existsSync()) _folder = f;
+      _sort = (box.get('sort') as String?) ?? 'date';
+      _favs = ((box.get('favs') as List?)?.cast<String>() ?? <String>[]).toSet();
     } catch (_) {}
   }
 
@@ -173,6 +179,26 @@ class _SimpleDocumentsScreenState extends State<SimpleDocumentsScreen>
       }
     } catch (_) {}
     await _load();
+  }
+
+  // 정렬 방식을 바꾸고 저장한다.
+  Future<void> _setSort(String v) async {
+    setState(() => _sort = v);
+    try {
+      final box = await Hive.openBox('simple_prefs');
+      await box.put('sort', v);
+    } catch (_) {}
+  }
+
+  // 즐겨찾기(별표) 켜기/끄기. 파일 경로를 Hive에 목록으로 저장한다.
+  Future<void> _toggleFav(_Doc d) async {
+    setState(() {
+      if (!_favs.add(d.path)) _favs.remove(d.path);
+    });
+    try {
+      final box = await Hive.openBox('simple_prefs');
+      await box.put('favs', _favs.toList());
+    } catch (_) {}
   }
 
   Future<bool> _hasPermission() async {
@@ -246,11 +272,21 @@ class _SimpleDocumentsScreenState extends State<SimpleDocumentsScreen>
   List<_Doc> get _visible {
     final exts = _kFilters[_filter] ?? const <String>{};
     final q = _query.trim().toLowerCase();
-    return _docs.where((d) {
+    final r = _docs.where((d) {
+      if (_filter == '★' && !_favs.contains(d.path)) return false;
       if (exts.isNotEmpty && !exts.contains(d.ext)) return false;
       if (q.isNotEmpty && !d.name.toLowerCase().contains(q)) return false;
       return true;
     }).toList();
+    // 정렬: 이름순은 가나다/ABC, 크기순은 큰 파일 먼저, 기본은 최근 수정 순.
+    if (_sort == 'name') {
+      r.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    } else if (_sort == 'size') {
+      r.sort((a, b) => b.size.compareTo(a.size));
+    } else {
+      r.sort((a, b) => b.modified.compareTo(a.modified));
+    }
+    return r;
   }
 
   void _open(_Doc d) {
@@ -309,6 +345,19 @@ class _SimpleDocumentsScreenState extends State<SimpleDocumentsScreen>
       appBar: AppBar(
         title: const Text('내 문서'),
         actions: [
+          PopupMenuButton<String>(
+            tooltip: '정렬',
+            icon: const Icon(Icons.sort),
+            onSelected: _setSort,
+            itemBuilder: (_) => [
+              CheckedPopupMenuItem(
+                  value: 'date', checked: _sort == 'date', child: const Text('최신순')),
+              CheckedPopupMenuItem(
+                  value: 'name', checked: _sort == 'name', child: const Text('이름순')),
+              CheckedPopupMenuItem(
+                  value: 'size', checked: _sort == 'size', child: const Text('크기순')),
+            ],
+          ),
           IconButton(
             tooltip: '폴더 선택',
             icon: const Icon(Icons.folder_open),
@@ -448,6 +497,18 @@ class _SimpleDocumentsScreenState extends State<SimpleDocumentsScreen>
                               overflow: TextOverflow.ellipsis,
                             ),
                             isThreeLine: true,
+                            trailing: IconButton(
+                              tooltip: '즐겨찾기',
+                              icon: Icon(
+                                _favs.contains(d.path)
+                                    ? Icons.star
+                                    : Icons.star_border,
+                                color: _favs.contains(d.path)
+                                    ? Colors.amber
+                                    : null,
+                              ),
+                              onPressed: () => _toggleFav(d),
+                            ),
                             onTap: () => _open(d),
                           );
                         },

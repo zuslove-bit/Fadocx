@@ -42,4 +42,11 @@ void main() {
     final g = File('android/app/build.gradle.kts').readAsStringSync();
     expect(g, contains('manifestPlaceholders["appName"] = "문서 뷰어"'));
   });
+
+  test('정렬과 즐겨찾기 기능이 있다', () {
+    final src = File('lib/features/simple/simple_documents_screen.dart').readAsStringSync();
+    expect(src, contains('_toggleFav'));
+    expect(src, contains('이름순'));
+    expect(src, contains("'★'"));
+  });
 }
