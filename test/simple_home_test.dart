@@ -66,4 +66,9 @@ void main() {
     final pdf = File('lib/features/viewer/presentation/widgets/modern_pdf_viewer.dart').readAsStringSync();
     expect(pdf, contains('_lastPointerY'));
   });
+
+  test('prod 아이콘 배경이 새 색으로 바뀌었다', () {
+    final c = File('android/app/src/prod/res/values/colors.xml').readAsStringSync();
+    expect(c, contains('#15478C'));
+  });
 }
