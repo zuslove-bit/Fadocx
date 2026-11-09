@@ -78,4 +78,10 @@ void main() {
     final k = File('android/app/src/main/kotlin/com/fadseclab/fadocx/MainActivity.kt').readAsStringSync();
     expect(k, contains('val root = e.cause ?: e'));
   });
+
+  test('Word/PPT 뷰어에 스와이프·가장자리 탭 페이지 넘김이 있다', () {
+    final v = File('lib/features/viewer/presentation/widgets/lokit_document_viewer.dart').readAsStringSync();
+    expect(v, contains('goToNextPage()'));
+    expect(v, contains('unzoomed'));
+  });
 }
