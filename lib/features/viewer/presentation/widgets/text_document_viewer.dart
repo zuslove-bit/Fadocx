@@ -820,7 +820,7 @@ class _TextDocumentViewerState extends State<TextDocumentViewer>
             ),
             const SizedBox(height: 16),
             Text(
-              'Empty file',
+              '빈 파일입니다',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),

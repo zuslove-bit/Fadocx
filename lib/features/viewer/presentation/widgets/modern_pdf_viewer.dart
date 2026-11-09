@@ -949,7 +949,7 @@ class _ModernPdfViewerState extends State<ModernPdfViewer>
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Unable to open PDF',
+                    'PDF를 열 수 없습니다',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
@@ -1623,7 +1623,7 @@ class _ModernPdfViewerState extends State<ModernPdfViewer>
                           const Spacer(),
                           if (_searchResults.isNotEmpty)
                             Text(
-                              '${_searchResults.length} result${_searchResults.length == 1 ? '' : 's'}',
+                              '검색 결과 ${_searchResults.length}개',
                               style: Theme.of(context)
                                   .textTheme
                                   .labelSmall
@@ -1711,7 +1711,7 @@ class _ModernPdfViewerState extends State<ModernPdfViewer>
                               .withValues(alpha: 0.3)),
                       const SizedBox(height: 12),
                       Text(
-                        'Search in PDF',
+                        'PDF에서 검색',
                         style:
                             Theme.of(context).textTheme.titleMedium?.copyWith(
                                   color: Theme.of(context).colorScheme.primary,
@@ -1722,7 +1722,7 @@ class _ModernPdfViewerState extends State<ModernPdfViewer>
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 24),
                         child: Text(
-                          'Find text across all pages',
+                          '모든 페이지에서 텍스트 찾기',
                           style: Theme.of(context)
                               .textTheme
                               .bodySmall
@@ -1748,7 +1748,7 @@ class _ModernPdfViewerState extends State<ModernPdfViewer>
                                   .withValues(alpha: 0.5)),
                           const SizedBox(height: 12),
                           Text(
-                            'No results found',
+                            '검색 결과가 없습니다',
                             style: Theme.of(context)
                                 .textTheme
                                 .bodyMedium
@@ -1758,7 +1758,7 @@ class _ModernPdfViewerState extends State<ModernPdfViewer>
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Try a different search term',
+                            '다른 검색어를 입력해 보세요',
                             style:
                                 Theme.of(context).textTheme.bodySmall?.copyWith(
                                       color: Theme.of(context)
@@ -1880,14 +1880,14 @@ class _ModernPdfViewerState extends State<ModernPdfViewer>
                     .withValues(alpha: 0.5)),
             const SizedBox(height: 12),
             Text(
-              'No table of contents available',
+              '목차가 없습니다',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.outline,
                   ),
             ),
             const SizedBox(height: 4),
             Text(
-              'This PDF does not contain a table of contents',
+              '이 PDF에는 목차가 없습니다',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context)
                         .colorScheme
@@ -1951,7 +1951,7 @@ class _ModernPdfViewerState extends State<ModernPdfViewer>
             ),
             const SizedBox(height: 16),
             Text(
-              'This feature is under development and will be available in a future update.',
+              '이 기능은 개발 중이며 이후 업데이트에서 제공됩니다.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context)
                         .colorScheme

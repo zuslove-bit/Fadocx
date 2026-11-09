@@ -29,4 +29,12 @@ void main() {
     expect(router, contains('SimpleDocumentsScreen()'));
     expect(router, isNot(contains('const MainShell()')));
   });
+
+  test('폴더 선택 기능과 한글 문구가 있다', () {
+    final src = File('lib/features/simple/simple_documents_screen.dart').readAsStringSync();
+    expect(src, contains('FilePicker.getDirectoryPath'));
+    expect(src, contains('폴더 선택'));
+    final pdf = File('lib/features/viewer/presentation/widgets/modern_pdf_viewer.dart').readAsStringSync();
+    expect(pdf, isNot(contains("'Search in PDF'")));
+  });
 }

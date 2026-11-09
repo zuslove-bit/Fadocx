@@ -297,8 +297,8 @@ class LOKitDocumentViewerState extends ConsumerState<LOKitDocumentViewer>
     final theme = Theme.of(context);
     final lokitState = ref.watch(lokitViewerProvider);
     final isInit = lokitState.isInitialized;
-    final label = isInit ? 'Preparing your document...' : 'Warming up the Fadocx engine...';
-    final sublabel = isInit ? 'Almost there' : 'Just a moment';
+    final label = isInit ? '문서를 준비하는 중입니다...' : '문서 엔진을 시작하는 중입니다...';
+    final sublabel = isInit ? '거의 다 됐습니다' : '잠시만 기다려 주세요';
     return Container(
       color: theme.scaffoldBackgroundColor,
       child: Center(
@@ -347,7 +347,7 @@ class LOKitDocumentViewerState extends ConsumerState<LOKitDocumentViewer>
               Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
               const SizedBox(height: 16),
               Text(
-                'Failed to render document',
+                '문서를 표시하지 못했습니다',
                 style: theme.textTheme.titleMedium,
               ),
               const SizedBox(height: 8),

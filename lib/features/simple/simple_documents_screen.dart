@@ -11,7 +11,9 @@
 import 'dart:io';
 import 'dart:isolate';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -114,12 +116,14 @@ class _SimpleDocumentsScreenState extends State<SimpleDocumentsScreen>
   List<_Doc> _docs = const [];
   String _query = '';
   String _filter = '전체';
+  // 사용자가 고른 폴더(없으면 폰 전체). Hive 'simple_prefs' 상자에 저장되어 다음 실행에도 유지된다.
+  String? _folder;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _load();
+    _restoreFolder().then((_) => _load());
   }
 
   @override
@@ -134,6 +138,35 @@ class _SimpleDocumentsScreenState extends State<SimpleDocumentsScreen>
     if (state == AppLifecycleState.resumed && _phase == _Phase.needPermission) {
       _load();
     }
+  }
+
+  // 저장된 폴더 선택값을 불러온다(실패해도 전체 검색으로 동작).
+  Future<void> _restoreFolder() async {
+    try {
+      final box = await Hive.openBox('simple_prefs');
+      final f = box.get('folder') as String?;
+      if (f != null && Directory(f).existsSync()) _folder = f;
+    } catch (_) {}
+  }
+
+  // 폴더 선택 창을 열어 고른 폴더만 보도록 한다. 취소하면 그대로 둔다.
+  Future<void> _pickFolder() async {
+    final dir = await FilePicker.getDirectoryPath(dialogTitle: '문서 폴더 선택');
+    if (dir == null) return;
+    await _saveFolder(dir);
+  }
+
+  Future<void> _saveFolder(String? dir) async {
+    _folder = dir;
+    try {
+      final box = await Hive.openBox('simple_prefs');
+      if (dir == null) {
+        await box.delete('folder');
+      } else {
+        await box.put('folder', dir);
+      }
+    } catch (_) {}
+    await _load();
   }
 
   Future<bool> _hasPermission() async {
@@ -160,15 +193,21 @@ class _SimpleDocumentsScreenState extends State<SimpleDocumentsScreen>
       return;
     }
     // 내장 저장소 + (있다면) SD카드 같은 외부 저장소
-    final roots = <String>['/storage/emulated/0'];
-    try {
-      for (final e in Directory('/storage').listSync(followLinks: false)) {
-        final n = e.path.split('/').last;
-        if (e is Directory && n != 'emulated' && n != 'self') {
-          roots.add(e.path);
+    // 폴더를 골랐다면 그 폴더만, 아니면 폰 전체(+SD카드)를 훑는다.
+    final roots = <String>[];
+    if (_folder != null) {
+      roots.add(_folder!);
+    } else {
+      roots.add('/storage/emulated/0');
+      try {
+        for (final e in Directory('/storage').listSync(followLinks: false)) {
+          final n = e.path.split('/').last;
+          if (e is Directory && n != 'emulated' && n != 'self') {
+            roots.add(e.path);
+          }
         }
-      }
-    } catch (_) {}
+      } catch (_) {}
+    }
     List<Map<String, Object>> raw;
     try {
       raw = await Isolate.run(() => scanDocuments(roots));
@@ -259,6 +298,11 @@ class _SimpleDocumentsScreenState extends State<SimpleDocumentsScreen>
         title: const Text('내 문서'),
         actions: [
           IconButton(
+            tooltip: '폴더 선택',
+            icon: const Icon(Icons.folder_open),
+            onPressed: _pickFolder,
+          ),
+          IconButton(
             tooltip: '새로고침',
             icon: const Icon(Icons.refresh),
             onPressed: _load,
@@ -339,6 +383,28 @@ class _SimpleDocumentsScreenState extends State<SimpleDocumentsScreen>
                     style: Theme.of(context).textTheme.bodySmall),
               ),
             ),
+            if (_folder != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+                child: Row(
+                  children: [
+                    const Icon(Icons.folder, size: 16),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        _folder!.replaceFirst('/storage/emulated/0', '내장 저장소'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => _saveFolder(null),
+                      child: const Text('전체 보기'),
+                    ),
+                  ],
+                ),
+              ),
             Expanded(
               child: list.isEmpty
                   ? Center(
