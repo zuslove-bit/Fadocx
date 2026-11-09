@@ -244,6 +244,11 @@ class MainActivity : FlutterActivity() {
                                     runOnUiThread { result.error("RENDER_FAILED", "Failed to render text page", null) }
                                 }
                             }
+                            "convertToPdf" -> {
+                                val out = call.argument<String>("outPath")
+                                val ok = out != null && lokitWrapper.saveAsPdf(out)
+                                runOnUiThread { result.success(ok) }
+                            }
                             "extractText" -> {
                                 val text = lokitWrapper.extractText()
                                 runOnUiThread { result.success(text ?: "") }

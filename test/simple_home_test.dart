@@ -90,4 +90,16 @@ void main() {
     expect(v, contains("tooltip: '문서 닫기'"));
     expect(v, contains('_showBookmarkMemoSheet'));
   });
+
+  test('Word/PPT PDF 변환·엑셀 폴백·사이드 북마크/메모', () {
+    final v = File('lib/features/viewer/presentation/screens/viewer_screen.dart').readAsStringSync();
+    expect(v, contains('_convertToPdf'));
+    final n = File('lib/features/viewer/presentation/providers/document_viewer_notifier.dart').readAsStringSync();
+    expect(n, contains('parseXLSX failed, falling back to LOKit'));
+    final m = File('lib/features/viewer/presentation/widgets/modern_pdf_viewer.dart').readAsStringSync();
+    expect(m, contains('_buildBookmarksTab'));
+    expect(m, contains('_buildNotesTab'));
+    final k = File('android/app/src/main/kotlin/com/fadseclab/fadocx/LOKitWrapper.kt').readAsStringSync();
+    expect(k, contains('fun saveAsPdf'));
+  });
 }

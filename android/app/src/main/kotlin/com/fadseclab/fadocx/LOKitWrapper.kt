@@ -251,6 +251,22 @@ UserInstallation=file://$cacheDir/lo_user
         }
     }
 
+    // [작동원리] 현재 열린 문서를 LibreOffice의 PDF 내보내기로 저장한다.
+    // Word/PPT/ODS 등을 PDF 화면(이어서 스크롤)으로 보여 주기 위해 사용한다.
+    fun saveAsPdf(outPath: String): Boolean {
+        synchronized(syncLock) {
+            val doc = document ?: return false
+            return try {
+                doc.saveAs(outPath, "pdf", "")
+                val f = File(outPath)
+                f.exists() && f.length() > 0
+            } catch (e: Exception) {
+                Log.e(TAG, "saveAsPdf failed", e)
+                false
+            }
+        }
+    }
+
     fun extractText(): String? {
         synchronized(syncLock) {
             val doc = document ?: return null

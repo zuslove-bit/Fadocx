@@ -82,10 +82,23 @@ class DocumentViewerNotifier extends Notifier<ParsedDocumentState> {
         case 'xlsx':
         case 'xls':
           log.d('Routing to parseXLSX for: $extension');
-          document = await repository.parseXLSX(
-            _filePath,
-            useNativeParsing: true,
-          );
+          // POI(java.awt.Color 등) 때문에 실패하는 파일이 있어, 실패하면
+          // LibreOffice 변환 경로(ODS 스텁 → PDF 변환)로 자동 전환한다.
+          try {
+            document = await repository.parseXLSX(
+              _filePath,
+              useNativeParsing: true,
+            );
+          } catch (e) {
+            log.w('parseXLSX failed, falling back to LOKit: $e');
+            document = ParsedDocumentEntity(
+              format: 'ODS',
+              sheets: const [],
+              sheetCount: 0,
+              parsedAt: DateTime.now(),
+              sourceFilePath: _filePath,
+            );
+          }
         case 'csv':
           log.d('Routing to native CSV parser');
           document = await repository.parseCSV(_filePath);
@@ -110,10 +123,23 @@ class DocumentViewerNotifier extends Notifier<ParsedDocumentState> {
         // Document formats
         case 'docx':
           log.d('Routing to parseDOCX');
-          document = await repository.parseDOCX(_filePath);
+          // Word는 POI 파싱 대신 LibreOffice(PDF 변환)로 직접 보여 준다.
+          document = ParsedDocumentEntity(
+            format: 'DOCX',
+            sheets: const [],
+            sheetCount: 0,
+            parsedAt: DateTime.now(),
+            sourceFilePath: _filePath,
+          );
         case 'doc':
-          log.d('Routing to parseDOC');
-          document = await repository.parseDOC(_filePath);
+          log.d('Routing DOC to LOKit stub');
+          document = ParsedDocumentEntity(
+            format: 'DOC',
+            sheets: const [],
+            sheetCount: 0,
+            parsedAt: DateTime.now(),
+            sourceFilePath: _filePath,
+          );
         case 'txt':
         case 'java':
         case 'py':

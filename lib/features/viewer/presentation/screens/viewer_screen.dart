@@ -1,7 +1,10 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:io';
+
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
 import 'package:go_router/go_router.dart';
@@ -60,6 +63,41 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
   bool _invertColors = false;
   bool _textMode = false;
   bool _bottomMenuExpanded = false;
+  // [작동원리] Word/PPT/ODS 등은 먼저 LibreOffice로 PDF로 변환(캐시)한 뒤 PDF 화면으로
+  // 보여 준다. 그러면 PDF·한글처럼 다음 페이지가 아래에 이어져 스크롤되고, 사이드 메뉴
+  // (북마크·메모·검색·목차)와 텍스트 보기도 그대로 쓸 수 있다. 변환 실패 시 기존 LOKit 화면.
+  String? _pdfPath;
+  bool _convertTried = false;
+  bool _converting = false;
+  static const _convertible = {
+    'PPT', 'PPTX', 'ODP', 'ODS', 'DOCX', 'DOC', 'RTF', 'ODT', 'OTT'
+  };
+
+  Future<void> _convertToPdf() async {
+    String? out;
+    try {
+      final tmp = await getTemporaryDirectory();
+      final st = File(widget.filePath).statSync();
+      final h = widget.filePath.codeUnits.fold<int>(7, (a, c) => (a * 31 + c) & 0x7fffffff);
+      final f = File('${tmp.path}/lo_pdf_${h}_${st.modified.millisecondsSinceEpoch}_${st.size}.pdf');
+      if (f.existsSync() && f.lengthSync() > 0) {
+        out = f.path;
+      } else {
+        await LOKitService.init();
+        await LOKitService.loadDocument(widget.filePath);
+        final ok = await LOKitService.convertToPdf(f.path);
+        await LOKitService.closeDocument();
+        if (ok) out = f.path;
+      }
+    } catch (e) {
+      _log.w('PDF 변환 실패, 기존 LOKit 화면으로 대체: $e');
+    }
+    if (!mounted) return;
+    setState(() {
+      _pdfPath = out;
+      _converting = false;
+    });
+  }
   // [작동원리] PDF를 처음 열 때 한 번만 저장된 마지막 페이지로 이동하고(_posRestored),
   // 이후 페이지가 바뀔 때마다 Hive 'simple_prefs'에 'pos|<파일경로>'로 저장한다.
   bool _posRestored = false;
@@ -117,7 +155,8 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
 
   bool _isPdfDocument() {
     final doc = ref.read(documentViewerProvider).document;
-    return doc?.format.toUpperCase() == 'PDF';
+    // LibreOffice로 PDF 변환에 성공한 Word/PPT 등도 PDF 화면으로 취급한다.
+    return _pdfPath != null || doc?.format.toUpperCase() == 'PDF';
   }
 
   bool _isSpreadsheet() {
@@ -182,11 +221,13 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
   }
 
   bool _isLOKitDocument() {
+    if (_pdfPath != null) return false; // PDF로 변환된 경우 LOKit 화면이 아님
     final format =
         ref.read(documentViewerProvider).document?.format.toUpperCase();
     return format == 'PPT' ||
         format == 'PPTX' ||
         format == 'ODP' ||
+        format == 'ODS' ||
         format == 'DOCX' ||
         format == 'DOC' ||
         format == 'RTF' ||
@@ -858,7 +899,27 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
   }
 
   Widget _buildContentViewer({required ParsedDocumentEntity document}) {
-    final format = document.format.toUpperCase();
+    var format = document.format.toUpperCase();
+    if (_convertible.contains(format) && _pdfPath == null) {
+      if (!_convertTried) {
+        _convertTried = true;
+        _converting = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) => _convertToPdf());
+      }
+      if (_converting) {
+        return const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('문서를 준비하는 중입니다...'),
+            ],
+          ),
+        );
+      }
+    }
+    if (_pdfPath != null) format = 'PDF';
     _log.d(
       'Building viewer for format=$format rich=${document.hasRichDocument} '
       'fidelity=${document.fidelityLevel.name} warnings=${document.parseWarnings.length}',
@@ -868,7 +929,8 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
     if (format == 'PDF') {
       return ModernPdfViewer(
         key: _pdfViewerKey,
-        filePath: widget.filePath,
+        filePath: _pdfPath ?? widget.filePath,
+        storageId: widget.filePath,
         fileName: widget.fileName,
         invertColors: _invertColors,
         textMode: _textMode,
@@ -1413,7 +1475,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
     int wordCount,
     int lineCount,
   ) async {
-    if (document.format.toUpperCase() != 'PDF') return;
+    if (_pdfPath == null && document.format.toUpperCase() != 'PDF') return;
     if (document.wordCount == wordCount && document.lineCount == lineCount) {
       return;
     }
@@ -2148,7 +2210,9 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
     final docState = ref.watch(documentViewerProvider);
     if (docState.document == null) return const SizedBox.shrink();
 
-    final format = docState.document!.format.toUpperCase();
+    final format = _pdfPath != null
+        ? 'PDF'
+        : docState.document!.format.toUpperCase();
 
     if (format == 'PDF') {
       return Row(
@@ -2605,7 +2669,9 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
     final docState = ref.watch(documentViewerProvider);
     if (docState.document == null) return const SizedBox.shrink();
 
-    final format = docState.document!.format.toUpperCase();
+    final format = _pdfPath != null
+        ? 'PDF'
+        : docState.document!.format.toUpperCase();
 
     if (format == 'PDF') {
       return Row(
