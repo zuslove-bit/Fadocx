@@ -84,4 +84,10 @@ void main() {
     expect(v, contains('goToNextPage()'));
     expect(v, contains('unzoomed'));
   });
+
+  test('문서 닫기 버튼과 북마크·메모 시트가 있다', () {
+    final v = File('lib/features/viewer/presentation/screens/viewer_screen.dart').readAsStringSync();
+    expect(v, contains("tooltip: '문서 닫기'"));
+    expect(v, contains('_showBookmarkMemoSheet'));
+  });
 }

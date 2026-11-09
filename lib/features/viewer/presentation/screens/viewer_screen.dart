@@ -1305,13 +1305,32 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
                               padding: EdgeInsets.zero,
                             ),
                           ),
+                          // 문서 닫기(X): 파일 이름이 길어도 항상 보이도록 오른쪽에 둔다.
                           Align(
                             alignment: Alignment.centerRight,
-                            child: _buildResetZoomButton(),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _buildResetZoomButton(),
+                                IconButton(
+                                  icon: const Icon(Icons.close),
+                                  tooltip: '문서 닫기',
+                                  onPressed: () => context.pop(),
+                                  iconSize: 24,
+                                  constraints: const BoxConstraints(
+                                      minWidth: 40, minHeight: 40),
+                                  padding: EdgeInsets.zero,
+                                ),
+                              ],
+                            ),
                           ),
                           Center(
                             child: ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 420),
+                              // 제목이 양쪽 버튼(뒤로/닫기)과 겹치지 않도록 폭을 제한한다.
+                              constraints: BoxConstraints(
+                                  maxWidth: (MediaQuery.sizeOf(context).width -
+                                          176)
+                                      .clamp(120.0, 420.0)),
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -2388,7 +2407,200 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
   }
 
   /// Build the expanded menu content (Copy, Invert, TextMode, Theme buttons)
+  // 하단 확장 메뉴: 형식별 도구 행 + (모든 문서 공통) 북마크·메모 행.
   Widget _buildExpandedMenuContent(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildFormatMenuRow(context),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _buildTile(
+                icon: Icons.bookmark_border,
+                label: '북마크·메모',
+                onTap: _showBookmarkMemoSheet,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // ───────── 북마크·메모 ─────────
+  // [작동원리] 파일 경로별로 Hive 'simple_prefs' 상자에 저장한다.
+  //   'bm|<경로>'   : 북마크한 페이지 번호 목록
+  //   'memo|<경로>' : {'페이지번호': '메모 내용'}
+  // 시트에서 현재 페이지를 북마크/해제하거나 메모를 쓰고, 목록을 눌러 그 페이지로 이동한다.
+  String get _bmKey => 'bm|${widget.filePath}';
+  String get _memoKey => 'memo|${widget.filePath}';
+
+  void _jumpToPage(int p) {
+    if (_isPdfDocument()) {
+      (_pdfViewerKey.currentState as dynamic)?.goToPage(p);
+    } else if (_isLOKitDocument()) {
+      (_lokitViewerKey.currentState as dynamic)?.goToPage(p);
+    }
+  }
+
+  Future<void> _showBookmarkMemoSheet() async {
+    final box = await Hive.openBox('simple_prefs');
+    final bms = ((box.get(_bmKey) as List?)?.cast<int>() ?? <int>[]).toList();
+    final memos = <String, String>{
+      for (final e in ((box.get(_memoKey) as Map?) ?? const {}).entries)
+        e.key.toString(): e.value.toString(),
+    };
+    final page = _currentPage < 1 ? 1 : _currentPage;
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) {
+          Future<void> save() async {
+            await box.put(_bmKey, bms);
+            await box.put(_memoKey, memos);
+          }
+
+          final pages = <int>{...bms, ...memos.keys.map((k) => int.tryParse(k) ?? 0)}
+              .where((p) => p > 0)
+              .toList()
+            ..sort();
+          return SafeArea(
+            child: Padding(
+              padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(ctx).size.height * 0.7),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const ListTile(
+                      title: Text('북마크·메모',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: FilledButton.tonalIcon(
+                              icon: Icon(bms.contains(page)
+                                  ? Icons.bookmark_remove
+                                  : Icons.bookmark_add),
+                              label: Text(bms.contains(page)
+                                  ? '$page쪽 북마크 해제'
+                                  : '$page쪽 북마크'),
+                              onPressed: () async {
+                                setS(() => bms.contains(page)
+                                    ? bms.remove(page)
+                                    : bms.add(page));
+                                await save();
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: FilledButton.tonalIcon(
+                              icon: const Icon(Icons.edit_note),
+                              label: Text('$page쪽 메모'),
+                              onPressed: () async {
+                                final c = TextEditingController(
+                                    text: memos['$page'] ?? '');
+                                final ok = await showDialog<bool>(
+                                  context: ctx,
+                                  builder: (dctx) => AlertDialog(
+                                    title: Text('$page쪽 메모'),
+                                    content: TextField(
+                                      controller: c,
+                                      autofocus: true,
+                                      maxLines: 5,
+                                      decoration: const InputDecoration(
+                                          hintText: '메모를 입력하세요'),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(dctx, false),
+                                          child: const Text('취소')),
+                                      FilledButton(
+                                          onPressed: () =>
+                                              Navigator.pop(dctx, true),
+                                          child: const Text('저장')),
+                                    ],
+                                  ),
+                                );
+                                if (ok == true) {
+                                  setS(() {
+                                    final t = c.text.trim();
+                                    if (t.isEmpty) {
+                                      memos.remove('$page');
+                                    } else {
+                                      memos['$page'] = t;
+                                    }
+                                  });
+                                  await save();
+                                }
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Divider(),
+                    if (pages.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Text('저장된 북마크·메모가 없습니다'),
+                      )
+                    else
+                      Flexible(
+                        child: ListView(
+                          shrinkWrap: true,
+                          children: [
+                            for (final p in pages)
+                              ListTile(
+                                leading: Icon(bms.contains(p)
+                                    ? Icons.bookmark
+                                    : Icons.sticky_note_2_outlined),
+                                title: Text('$p쪽'),
+                                subtitle: memos['$p'] == null
+                                    ? null
+                                    : Text(memos['$p']!,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis),
+                                trailing: IconButton(
+                                  icon: const Icon(Icons.delete_outline),
+                                  tooltip: '삭제',
+                                  onPressed: () async {
+                                    setS(() {
+                                      bms.remove(p);
+                                      memos.remove('$p');
+                                    });
+                                    await save();
+                                  },
+                                ),
+                                onTap: () {
+                                  Navigator.pop(ctx);
+                                  _jumpToPage(p);
+                                },
+                              ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildFormatMenuRow(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final docState = ref.watch(documentViewerProvider);
     if (docState.document == null) return const SizedBox.shrink();
