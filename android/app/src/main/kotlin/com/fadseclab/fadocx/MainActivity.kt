@@ -107,7 +107,9 @@ class MainActivity : FlutterActivity() {
                     } catch (e: Exception) {
                         Log.e(TAG, "Reflection load failed", e)
                         logCauseChain("Reflection load failed", e)
-                        runOnUiThread { result.error("REFLECTION_ERROR", e.message, null) }
+                        // InvocationTargetException은 message가 비어 있으므로 실제 원인(cause)을 보여 준다.
+                        val root = e.cause ?: e
+                        runOnUiThread { result.error("REFLECTION_ERROR", "${root.javaClass.simpleName}: ${root.message}", null) }
                     }
                 }.start()
             }

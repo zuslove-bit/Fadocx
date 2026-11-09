@@ -67,8 +67,9 @@ android {
             // R8 minification enabled with selective keep rules for POI/XMLBeans/logging
             // Critical classes (POI, XMLBeans, logging, JNI) are kept unobfuscated
             // Everything else (Flutter, app code, unused deps) is aggressively minified
-            isMinifyEnabled = true
-            isShrinkResources = true
+            // 개인용 뷰어: R8 축소가 POI 등 리플렉션 클래스를 지워 엑셀이 안 열리는 문제가 있어 끈다.
+            isMinifyEnabled = false
+            isShrinkResources = false
             // Use only our custom ProGuard rules (not the default Android ones)
             proguardFiles("proguard-rules.pro")
         }

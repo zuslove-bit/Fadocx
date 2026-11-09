@@ -71,4 +71,11 @@ void main() {
     final c = File('android/app/src/prod/res/values/colors.xml').readAsStringSync();
     expect(c, contains('#15478C'));
   });
+
+  test('릴리스 빌드에서 코드 축소가 꺼져 있고 오류 원인을 보여 준다', () {
+    final g = File('android/app/build.gradle.kts').readAsStringSync();
+    expect(g, contains('isMinifyEnabled = false'));
+    final k = File('android/app/src/main/kotlin/com/fadseclab/fadocx/MainActivity.kt').readAsStringSync();
+    expect(k, contains('val root = e.cause ?: e'));
+  });
 }
