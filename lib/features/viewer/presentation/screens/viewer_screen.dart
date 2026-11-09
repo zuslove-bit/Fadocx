@@ -70,7 +70,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
   bool _convertTried = false;
   bool _converting = false;
   static const _convertible = {
-    'PPT', 'PPTX', 'ODP', 'ODS', 'DOCX', 'DOC', 'RTF', 'ODT', 'OTT'
+    'PPT', 'PPTX', 'ODP', 'DOCX', 'DOC', 'RTF', 'ODT', 'OTT'
   };
 
   Future<void> _convertToPdf() async {
@@ -79,7 +79,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
       final tmp = await getTemporaryDirectory();
       final st = File(widget.filePath).statSync();
       final h = widget.filePath.codeUnits.fold<int>(7, (a, c) => (a * 31 + c) & 0x7fffffff);
-      final f = File('${tmp.path}/lo_pdf_${h}_${st.modified.millisecondsSinceEpoch}_${st.size}.pdf');
+      final f = File('${tmp.path}/lo2_pdf_${h}_${st.modified.millisecondsSinceEpoch}_${st.size}.pdf');
       if (f.existsSync() && f.lengthSync() > 0) {
         out = f.path;
       } else {

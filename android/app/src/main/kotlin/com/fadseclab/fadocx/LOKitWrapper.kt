@@ -2,6 +2,8 @@ package com.fadseclab.fadocx
 
 import android.app.Activity
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.pdf.PdfDocument
 import android.util.Log
 import org.libreoffice.kit.Document
 import org.libreoffice.kit.LibreOfficeKit
@@ -248,6 +250,53 @@ UserInstallation=file://$cacheDir/lo_user
                 Log.e(TAG, "renderTextPage failed for page $pageIndex", e)
                 return null
             }
+        }
+    }
+
+    // [작동원리] 글꼴 문제 회피용: 각 페이지를 '그림 그리기(paintTile)'로 렌더링한 뒤
+    // Android PdfDocument로 한 장씩 묶어 PDF를 만든다. (그리기 경로는 한글이 정상 표시됨)
+    // 글 문서(Writer)는 페이지 사각형별로, 프레젠테이션은 슬라이드별로 그린다.
+    // 반환: 만든 페이지 수(0이면 실패/미지원 → 호출측이 기존 PDF 내보내기로 대체).
+    fun saveAsImagePdf(outPath: String): Int {
+        synchronized(syncLock) {
+            val doc = document ?: return 0
+            val type = doc.documentType
+            val pdf = PdfDocument()
+            var made = 0
+            try {
+                val count = when (type) {
+                    Document.DOCTYPE_TEXT -> getPageCount()
+                    Document.DOCTYPE_PRESENTATION -> doc.parts
+                    else -> 0
+                }
+                for (i in 0 until count) {
+                    // 페이지 하나를 PNG 바이트로 그린다(가로 약 1400px 기준).
+                    val bytes = (if (type == Document.DOCTYPE_TEXT) {
+                        renderTextPage(i, 1400, 2000, 1.0f)
+                    } else {
+                        renderPageHighQuality(i, 1600, 1200, 1.0f)
+                    }) ?: continue
+                    val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: continue
+                    // PDF 페이지 크기는 포인트 단위(px * 0.5 정도로 축소해 화면 비율 유지)
+                    val pw = (bmp.width * 0.5f).toInt().coerceAtLeast(1)
+                    val ph = (bmp.height * 0.5f).toInt().coerceAtLeast(1)
+                    val page = pdf.startPage(PdfDocument.PageInfo.Builder(pw, ph, made + 1).create())
+                    val dst = android.graphics.Rect(0, 0, pw, ph)
+                    page.canvas.drawBitmap(bmp, null, dst, android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG))
+                    pdf.finishPage(page)
+                    bmp.recycle()
+                    made++
+                }
+                if (made > 0) {
+                    FileOutputStream(outPath).use { pdf.writeTo(it) }
+                }
+            } catch (e: Throwable) {
+                Log.e(TAG, "saveAsImagePdf failed", e)
+                made = 0
+            } finally {
+                pdf.close()
+            }
+            return made
         }
     }
 

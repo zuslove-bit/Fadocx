@@ -102,4 +102,11 @@ void main() {
     final k = File('android/app/src/main/kotlin/com/fadseclab/fadocx/LOKitWrapper.kt').readAsStringSync();
     expect(k, contains('fun saveAsPdf'));
   });
+
+  test('Word/PPT는 그림 기반 PDF로 변환해 한글 깨짐을 피한다', () {
+    final k = File('android/app/src/main/kotlin/com/fadseclab/fadocx/LOKitWrapper.kt').readAsStringSync();
+    expect(k, contains('fun saveAsImagePdf'));
+    final m = File('android/app/src/main/kotlin/com/fadseclab/fadocx/MainActivity.kt').readAsStringSync();
+    expect(m, contains('saveAsImagePdf(out) > 0'));
+  });
 }

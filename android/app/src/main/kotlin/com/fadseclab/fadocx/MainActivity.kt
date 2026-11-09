@@ -246,7 +246,9 @@ class MainActivity : FlutterActivity() {
                             }
                             "convertToPdf" -> {
                                 val out = call.argument<String>("outPath")
-                                val ok = out != null && lokitWrapper.saveAsPdf(out)
+                                // Word/PPT는 그림 기반 PDF(한글 깨짐 방지), 그 외(엑셀 등)는 일반 PDF 내보내기
+                                val ok = out != null &&
+                                    (lokitWrapper.saveAsImagePdf(out) > 0 || lokitWrapper.saveAsPdf(out))
                                 runOnUiThread { result.success(ok) }
                             }
                             "extractText" -> {
