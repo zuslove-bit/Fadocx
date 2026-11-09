@@ -79,7 +79,8 @@ jobs:
       # [작동원리] 최신 Flutter/Dart와 맞지 않는 구버전 pdfrx_engine(널 안전성 오류)을
       # 호환되는 최신 패치 버전으로 올린다. (lock 파일은 저장소에 그대로 둠)
       - run: flutter pub upgrade pdfrx pdfrx_engine pdfium_flutter
-      - run: dart run pdfrx:remove_wasm_modules   # 웹용 WASM 제거(용량 절감, AGENTS.md 참고)
+      # 새 pdfrx 버전에는 이 스크립트가 없을 수 있어 실패해도 계속 진행한다.
+      - run: dart run pdfrx:remove_wasm_modules || echo "remove_wasm_modules 없음 - 건너뜀"
 
       # [작동원리] Hive 어댑터(*.g.dart)는 저장소에 없으므로 빌드 전에 코드 생성을 한다(AGENTS.md 참고).
       - name: Hive 어댑터 코드 생성
