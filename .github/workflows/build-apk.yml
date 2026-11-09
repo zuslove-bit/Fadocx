@@ -92,7 +92,13 @@ jobs:
         continue-on-error: true   # 기존 코드의 분석 오류로 빌드가 막히지 않게 하되 로그에서 확인
 
       - name: arm64 릴리스 APK 빌드
-        run: flutter build apk --flavor prod --release --split-per-abi --target-platform android-arm64
+        # [작동원리] GitHub/Maven 서버의 일시적 504 오류에 대비해 최대 4번까지 다시 시도한다.
+        run: |
+          for i in 1 2 3 4; do
+            flutter build apk --flavor prod --release --split-per-abi --target-platform android-arm64 && exit 0
+            echo "빌드 실패($i/4) — 60초 후 재시도"; sleep 60
+          done
+          exit 1
 
       - name: HWP 연동 테스트
         run: flutter test test/hwp_support_test.dart test/korean_locale_test.dart test/simple_home_test.dart
