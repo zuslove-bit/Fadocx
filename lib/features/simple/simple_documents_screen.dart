@@ -138,15 +138,13 @@ class _SimpleDocumentsScreenState extends State<SimpleDocumentsScreen>
 
   Future<bool> _hasPermission() async {
     if (!Platform.isAndroid) return true;
-    return await Permission.manageExternalStorage.isGranted ||
-        await Permission.storage.isGranted;
+    // 안드로이드 13+에서는 Permission.storage가 실제 접근 없이도 '허용'으로 나오므로
+    // 반드시 '모든 파일 접근(manageExternalStorage)'만 기준으로 삼는다.
+    return await Permission.manageExternalStorage.isGranted;
   }
 
   Future<void> _requestPermission() async {
-    var status = await Permission.manageExternalStorage.request();
-    if (!status.isGranted) {
-      status = await Permission.storage.request();
-    }
+    final status = await Permission.manageExternalStorage.request();
     if (!status.isGranted) {
       // 시스템 설정 화면으로 보내 직접 허용하게 한다.
       await openAppSettings();
@@ -343,7 +341,19 @@ class _SimpleDocumentsScreenState extends State<SimpleDocumentsScreen>
             ),
             Expanded(
               child: list.isEmpty
-                  ? const Center(child: Text('문서가 없습니다'))
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('문서가 없습니다'),
+                          const SizedBox(height: 12),
+                          TextButton(
+                            onPressed: _requestPermission,
+                            child: const Text('파일 접근 권한 다시 설정'),
+                          ),
+                        ],
+                      ),
+                    )
                   : RefreshIndicator(
                       onRefresh: _load,
                       child: ListView.builder(
