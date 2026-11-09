@@ -1440,17 +1440,18 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
     IconData icon,
     VoidCallback? onTap,
   ) {
+    // 터치하기 쉽도록 버튼을 키웠다(32→44, 아이콘 16→26).
     return SizedBox(
-      width: 32,
-      height: 32,
+      width: 44,
+      height: 44,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(10),
           child: Icon(
             icon,
-            size: 16,
+            size: 26,
             color: onTap != null
                 ? Theme.of(context).colorScheme.primary
                 : Theme.of(context)
@@ -1467,7 +1468,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
     return GestureDetector(
       onTap: _totalPages > 1 ? _showGoToPageDialog : null,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: Theme.of(context)
               .colorScheme
@@ -1477,7 +1478,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
         ),
         child: Text(
           '$_currentPage/$_totalPages',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
                 color: Theme.of(context).colorScheme.primary,
               ),
@@ -1496,7 +1497,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: const EdgeInsets.symmetric(vertical: 18),
           decoration: BoxDecoration(
             color: Theme.of(context)
                 .colorScheme
@@ -1507,9 +1508,13 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 20),
-              const SizedBox(height: 4),
-              Text(label, style: Theme.of(context).textTheme.labelSmall),
+              Icon(icon, size: 30),
+              const SizedBox(height: 6),
+              Text(label,
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(fontWeight: FontWeight.w600)),
             ],
           ),
         ),

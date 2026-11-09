@@ -58,4 +58,12 @@ void main() {
     final v = File('lib/features/viewer/presentation/screens/viewer_screen.dart').readAsStringSync();
     expect(v, contains('_rememberPdfPage'));
   });
+
+  test('언어 고정·읽기 통계 한글·가장자리 탭 페이지 넘김', () {
+    expect(File('lib/main.dart').readAsStringSync(), contains("savedLanguage = 'ko'"));
+    final t = File('lib/core/services/thumbnail_generation_service.dart').readAsStringSync();
+    expect(t, isNot(contains('min read')));
+    final pdf = File('lib/features/viewer/presentation/widgets/modern_pdf_viewer.dart').readAsStringSync();
+    expect(pdf, contains('_lastPointerY'));
+  });
 }

@@ -33,7 +33,8 @@ void main() async {
       log.i('📱 Theme loaded from Hive: $savedTheme');
     }
     if (settings?.language != null) {
-      savedLanguage = settings!.language;
+      // 단순 뷰어: 저장된 언어(기본 'en')를 쓰지 않고 항상 한국어로 고정한다.
+      savedLanguage = 'ko';
       log.i('🌐 Language loaded from Hive: $savedLanguage');
     }
     onboardingSeen = settings?.hasDismissedWelcome ?? false;

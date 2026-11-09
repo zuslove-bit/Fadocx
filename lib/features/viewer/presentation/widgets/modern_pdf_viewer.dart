@@ -98,6 +98,7 @@ class _ModernPdfViewerState extends State<ModernPdfViewer>
 
   // Tap detection - track pointer position and time to distinguish taps from scrolls
   Offset? _tapStartPosition;
+  double? _lastPointerY; // 마지막으로 누른 위치의 세로 좌표(뷰어 기준)
   DateTime? _tapStartTime;
 
   // Sidebar tabs: 0=Pages, 1=Search, 2=TOC, 3=Notes, 4=Bookmarks
@@ -1121,6 +1122,21 @@ class _ModernPdfViewerState extends State<ModernPdfViewer>
         },
         onGeneralTap: (context, controller, details) {
           if (details.type == PdfViewerGeneralTapType.tap) {
+            // [작동원리] 화면 위쪽 20%를 탭하면 이전 페이지, 아래쪽 20%를 탭하면
+            // 다음 페이지로 넘긴다. 가운데는 기존처럼 메뉴 표시/숨김.
+            // 손가락 위치는 아래 Listener가 기록한 _lastPointerY를 쓴다.
+            final h = (this.context.size?.height) ?? 0;
+            final y = _lastPointerY;
+            if (h > 0 && y != null) {
+              if (y < h * 0.2) {
+                goToPreviousPage();
+                return false;
+              }
+              if (y > h * 0.8) {
+                goToNextPage();
+                return false;
+              }
+            }
             widget.onTap?.call();
           }
           return false;
@@ -1132,11 +1148,19 @@ class _ModernPdfViewerState extends State<ModernPdfViewer>
     // and improve rendering performance. The colorFilter property changes dynamically
     // instead of rebuilding the entire widget tree.
     return RepaintBoundary(
-      child: ColorFiltered(
-        colorFilter: widget.invertColors
-            ? invertColorFilter
-            : const ColorFilter.mode(Colors.transparent, BlendMode.lighten),
-        child: viewer,
+      child: Listener(
+        // 탭 위치(위/아래 가장자리 판별용)만 기록하고 제스처는 가로채지 않는다.
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: (e) {
+          final box = context.findRenderObject();
+          _lastPointerY = box is RenderBox ? box.globalToLocal(e.position).dy : null;
+        },
+        child: ColorFiltered(
+          colorFilter: widget.invertColors
+              ? invertColorFilter
+              : const ColorFilter.mode(Colors.transparent, BlendMode.lighten),
+          child: viewer,
+        ),
       ),
     );
   }
