@@ -63,6 +63,17 @@ dependencies:
   xml: ^6.6.1  # For parsing ODF/OOXML
 
   # =========================
+  # HWP / HWPX (한글 문서)
+  # =========================
+  # [작동원리] rhwp(Rust+WASM 기반 오픈소스 HWP 파서/렌더러)를 flutter_rust_bridge로
+  # 감싼 플러그인. 빌드 시 Rust 툴체인이 필요하며(cargokit이 자동 컴파일),
+  # 문서를 페이지별 SVG로 렌더링해 RhwpViewer 위젯으로 보여준다.
+  flutter_rhwp:
+    git:
+      url: https://github.com/JAICHANGPARK/flutter_rhwp.git
+      ref: main
+
+  # =========================
   # XLSX
   # =========================
   # excel package removed — XLSX is parsed natively via Apache POI (platform channel)
@@ -125,8 +136,8 @@ flutter_launcher_icons:
   android: "ic_launcher"
   ios: false
   image_path: "assets/fadocx.png"
-  adaptive_icon_background: "#0D0D0D"
-  adaptive_icon_foreground: "assets/fadocx.png"
+  adaptive_icon_background: "#245C9F"
+  adaptive_icon_foreground: "assets/app_icon_foreground.png"
   # Flavor-specific icons are generated via separate config files:
   # dart run flutter_launcher_icons -f flutter_launcher_icons-beta.yaml
   # dart run flutter_launcher_icons -f flutter_launcher_icons-prod.yaml

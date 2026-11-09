@@ -57,6 +57,11 @@
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document"/>
                 <data android:mimeType="application/msword"/>
+                <!-- 한글 문서 -->
+                <data android:mimeType="application/x-hwp"/>
+                <data android:mimeType="application/haansofthwp"/>
+                <data android:mimeType="application/vnd.hancom.hwp"/>
+                <data android:mimeType="application/vnd.hancom.hwpx"/>
                 <data android:mimeType="application/pdf"/>
                 <data android:mimeType="application/rtf"/>
                 <data android:mimeType="text/rtf"/>
@@ -176,6 +181,8 @@
                 <!-- Documents -->
                 <data android:scheme="file" android:host="*" android:pathPattern=".*\\.docx"/>
                 <data android:scheme="file" android:host="*" android:pathPattern=".*\\.doc"/>
+                <data android:scheme="file" android:host="*" android:pathPattern=".*\\.hwp"/>
+                <data android:scheme="file" android:host="*" android:pathPattern=".*\\.hwpx"/>
                 <data android:scheme="file" android:host="*" android:pathPattern=".*\\.pdf"/>
                 <data android:scheme="file" android:host="*" android:pathPattern=".*\\.rtf"/>
                 <data android:scheme="file" android:host="*" android:pathPattern=".*\\.txt"/>

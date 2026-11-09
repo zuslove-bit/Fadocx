@@ -73,6 +73,8 @@ class StorageService {
         return pdfsFolder;
       case 'docx':
       case 'doc':
+      case 'hwp':
+      case 'hwpx':
       case 'odt':
       case 'rtf':
       case 'txt':
