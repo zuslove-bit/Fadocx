@@ -1048,6 +1048,8 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen>
         break;
       case 'docx':
       case 'doc':
+      case 'hwp': // 한글
+      case 'hwpx':
       case 'odt':
       case 'rtf':
       case 'txt':
@@ -1138,6 +1140,8 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen>
         return 'pdf';
       case 'docx':
       case 'doc':
+      case 'hwp': // 한글
+      case 'hwpx':
       case 'odt':
       case 'rtf':
       case 'txt':

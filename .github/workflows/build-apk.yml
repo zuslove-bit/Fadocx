@@ -56,6 +56,13 @@ jobs:
       - run: flutter pub get
       - run: dart run pdfrx:remove_wasm_modules   # 웹용 WASM 제거(용량 절감, AGENTS.md 참고)
 
+      # [검증] 빌드 전에 정적 분석과 HWP 연동 테스트를 먼저 돌려 문제를 빨리 발견한다.
+      - name: 정적 분석 (오류 확인용, 경고/정보는 무시)
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+        continue-on-error: true   # 기존 코드의 분석 오류로 빌드가 막히지 않게 하되 로그에서 확인
+      - name: HWP 연동 테스트
+        run: flutter test test/hwp_support_test.dart
+
       - name: arm64 릴리스 APK 빌드
         run: flutter build apk --flavor prod --release --split-per-abi --target-platform android-arm64
 

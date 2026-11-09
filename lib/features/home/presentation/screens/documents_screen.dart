@@ -1489,6 +1489,8 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen>
         break;
       case 'docx':
       case 'doc':
+      case 'hwp': // 한글
+      case 'hwpx':
       case 'odt':
       case 'rtf':
       case 'txt':
@@ -2357,6 +2359,8 @@ class _ThumbnailPlaceholderState extends ConsumerState<_ThumbnailPlaceholder> {
         break;
       case 'docx':
       case 'doc':
+      case 'hwp': // 한글
+      case 'hwpx':
       case 'odt':
       case 'rtf':
       case 'txt':

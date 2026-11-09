@@ -173,6 +173,13 @@ class ThumbnailGenerationService {
             normalizedType,
             brightness: brightness,
           ),
+        // 한글 문서는 rhwp로만 열 수 있어 텍스트 썸네일 파서를 쓰지 않고 자리표시 썸네일을 만든다.
+        'hwp' || 'hwpx' => _createPlaceholderThumbnail(
+            label: normalizedType.toUpperCase(),
+            accent: ThumbnailColors.docBlue,
+            caption: fileName,
+            brightness: brightness,
+          ),
         _ => _createPlaceholderThumbnail(
             label: normalizedType.toUpperCase(),
             accent: ThumbnailColors.gray,
@@ -1577,7 +1584,7 @@ class ThumbnailGenerationService {
   static ColorRgb _accentForType(String normalizedType) {
     return switch (normalizedType) {
       'pdf' => ThumbnailColors.pdfRed,
-      'doc' || 'docx' || 'odt' || 'rtf' || 'txt' => ThumbnailColors.docBlue,
+      'doc' || 'docx' || 'hwp' || 'hwpx' || 'odt' || 'rtf' || 'txt' => ThumbnailColors.docBlue,
       'xls' || 'xlsx' || 'csv' || 'ods' => ThumbnailColors.sheetGreen,
       'ppt' || 'pptx' || 'odp' || 'epub' || 'ods' => ThumbnailColors.pptOrange,
       'png' || 'jpg' || 'jpeg' || 'gif' || 'webp' || 'bmp' => ThumbnailColors.imageAmber,
