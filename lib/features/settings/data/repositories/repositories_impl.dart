@@ -232,7 +232,7 @@ class AppSettingsRepositoryImpl implements AppSettingsRepository {
         yield ResultSuccess(AppSettings(
           id: 'default',
           theme: 'system',
-          language: 'en',
+          language: 'ko', // 기본 언어: 한국어
           enableNotifications: true,
           hasImportedSampleFiles: false,
           hasDismissedWelcome: false,
@@ -256,7 +256,7 @@ class AppSettingsRepositoryImpl implements AppSettingsRepository {
       yield ResultSuccess(AppSettings(
         id: 'default',
         theme: 'system',
-        language: 'en',
+        language: 'ko', // 기본 언어: 한국어
         enableNotifications: true,
         hasImportedSampleFiles: false,
         hasDismissedWelcome: false,

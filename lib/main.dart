@@ -23,7 +23,7 @@ void main() async {
 
   // Load theme from Hive to set correct system UI overlay style
   String savedTheme = 'dark'; // Default fallback
-  String savedLanguage = 'en'; // Default fallback
+  String savedLanguage = 'ko'; // 기본 언어: 한국어 (저장된 값이 없을 때)
   bool onboardingSeen = true;
   bool reShowOnboarding = false;
   try {
