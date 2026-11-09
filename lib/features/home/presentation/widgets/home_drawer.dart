@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/services.dart';
-import 'package:simple_icons/simple_icons.dart';
+import 'package:fadocx/core/brand_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:fadocx/config/routing/app_router.dart';
 import 'package:fadocx/features/settings/presentation/providers/settings_providers.dart';

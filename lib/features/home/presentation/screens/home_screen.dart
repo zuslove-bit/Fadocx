@@ -20,7 +20,7 @@ import 'package:fadocx/features/home/presentation/providers/update_check_provide
 import 'package:fadocx/core/presentation/widgets/update_available_sheet.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:simple_icons/simple_icons.dart';
+import 'package:fadocx/core/brand_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:fadocx/l10n/app_localizations.dart';
 
