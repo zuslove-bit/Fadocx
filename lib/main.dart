@@ -43,7 +43,9 @@ void main() async {
   }
 
   // Show onboarding on first launch or if user toggled re-show
-  if (!onboardingSeen || reShowOnboarding) {
+  // 단순 뷰어: 첫 실행 시작 안내(온보딩)는 생략한다.
+  // ignore: dead_code
+  if (false && (!onboardingSeen || reShowOnboarding)) {
     setInitialRoute(RouteNames.onboarding);
     log.i(
         '🚀 Showing onboarding (firstLaunch: ${!onboardingSeen}, reShow: $reShowOnboarding)');
