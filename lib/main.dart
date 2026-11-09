@@ -131,7 +131,7 @@ class _MyAppState extends ConsumerState<MyApp> {
     final locale = ref.watch(localeProvider);
 
     return MaterialApp.router(
-      title: 'Fadocx',
+      title: '문서 뷰어',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,

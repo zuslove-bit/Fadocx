@@ -37,4 +37,9 @@ void main() {
     final pdf = File('lib/features/viewer/presentation/widgets/modern_pdf_viewer.dart').readAsStringSync();
     expect(pdf, isNot(contains("'Search in PDF'")));
   });
+
+  test('앱 이름이 문서 뷰어로 바뀌었다', () {
+    final g = File('android/app/build.gradle.kts').readAsStringSync();
+    expect(g, contains('manifestPlaceholders["appName"] = "문서 뷰어"'));
+  });
 }

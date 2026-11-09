@@ -85,7 +85,7 @@ android {
         }
         create("prod") {
             dimension = "environment"
-            manifestPlaceholders["appName"] = "Fadocx"
+            manifestPlaceholders["appName"] = "문서 뷰어"
             versionName = appVersionName
         }
     }
