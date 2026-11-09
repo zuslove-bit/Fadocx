@@ -1,0 +1,40 @@
+# [작동원리] 이미 빌드된 Actions 산출물(zip)을 내려받아 APK만 꺼내
+# '초안(draft) 릴리스'의 첨부 파일로 올린다. 초안은 저장소 소유자에게만 보이며,
+# 릴리스 첨부는 zip 없이 APK를 바로 받을 수 있어 압축 해제 오류를 피한다.
+name: Release APK (draft)
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: '산출물을 가져올 Build APK 실행 번호(run id)'
+        required: true
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: hwp-office-viewer-arm64
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+          path: apk
+
+      - name: APK 확인 (크기/서명 구조)
+        run: |
+          ls -l apk
+          for f in apk/*.apk; do unzip -tq "$f" | tail -1; done
+
+      - name: 초안 릴리스 생성 및 APK 첨부
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "apk-run-${{ inputs.run_id }}" apk/*.apk \
+            --draft --title "APK (build ${{ inputs.run_id }})" \
+            --notes "임시 키로 서명된 arm64 APK. 개인용 초안 릴리스." \
+            --repo "${{ github.repository }}"
