@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
 import 'package:go_router/go_router.dart';
@@ -59,6 +60,29 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
   bool _invertColors = false;
   bool _textMode = false;
   bool _bottomMenuExpanded = false;
+  // [작동원리] PDF를 처음 열 때 한 번만 저장된 마지막 페이지로 이동하고(_posRestored),
+  // 이후 페이지가 바뀔 때마다 Hive 'simple_prefs'에 'pos|<파일경로>'로 저장한다.
+  bool _posRestored = false;
+
+  Future<void> _rememberPdfPage(int current, int total) async {
+    try {
+      final box = await Hive.openBox('simple_prefs');
+      final key = 'pos|${widget.filePath}';
+      if (!_posRestored) {
+        _posRestored = true;
+        final saved = box.get(key) as int?;
+        if (saved != null && saved > 1 && saved <= total && saved != current) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              (_pdfViewerKey.currentState as dynamic)?.goToPage(saved);
+            }
+          });
+        }
+        return; // 복원 시도 첫 호출에서는 덮어쓰지 않는다.
+      }
+      await box.put(key, current);
+    } catch (_) {}
+  }
   bool _sidebarOpen = false;
   double _lokitZoom = 1.0;
   int _currentPage = 1;
@@ -861,6 +885,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
               _currentPage = current;
               _totalPages = total;
             });
+            _rememberPdfPage(current, total);
           }
         },
         onSearchHighlight: _onSearchHighlight,

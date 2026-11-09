@@ -14,10 +14,13 @@ import 'dart:isolate';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'package:fadocx/config/routing/app_router.dart';
+import 'package:fadocx/config/theme/theme_provider.dart';
 
 /// 목록에 보여 줄 문서 확장자.
 const Set<String> kDocumentExtensions = {
@@ -110,14 +113,15 @@ class _Doc {
 
 enum _Phase { loading, needPermission, ready }
 
-class SimpleDocumentsScreen extends StatefulWidget {
+class SimpleDocumentsScreen extends ConsumerStatefulWidget {
   const SimpleDocumentsScreen({super.key});
 
   @override
-  State<SimpleDocumentsScreen> createState() => _SimpleDocumentsScreenState();
+  ConsumerState<SimpleDocumentsScreen> createState() =>
+      _SimpleDocumentsScreenState();
 }
 
-class _SimpleDocumentsScreenState extends State<SimpleDocumentsScreen>
+class _SimpleDocumentsScreenState extends ConsumerState<SimpleDocumentsScreen>
     with WidgetsBindingObserver {
   _Phase _phase = _Phase.loading;
   List<_Doc> _docs = const [];
@@ -128,6 +132,8 @@ class _SimpleDocumentsScreenState extends State<SimpleDocumentsScreen>
   // 정렬 방식: 'date'(최신순) / 'name'(이름순) / 'size'(큰 순). 즐겨찾기 경로 모음.
   String _sort = 'date';
   Set<String> _favs = <String>{};
+  // 최근 연 문서 경로(최근 것이 앞, 최대 10개).
+  List<String> _recent = <String>[];
 
   @override
   void initState() {
@@ -158,6 +164,7 @@ class _SimpleDocumentsScreenState extends State<SimpleDocumentsScreen>
       if (f != null && Directory(f).existsSync()) _folder = f;
       _sort = (box.get('sort') as String?) ?? 'date';
       _favs = ((box.get('favs') as List?)?.cast<String>() ?? <String>[]).toSet();
+      _recent = (box.get('recent') as List?)?.cast<String>().toList() ?? <String>[];
     } catch (_) {}
   }
 
@@ -269,6 +276,15 @@ class _SimpleDocumentsScreenState extends State<SimpleDocumentsScreen>
     });
   }
 
+  // '최근 연 문서' 경로를 현재 불러온 문서 목록과 맞춰 본다(없어진 파일은 제외).
+  List<_Doc> get _recentDocs {
+    final byPath = {for (final d in _docs) d.path: d};
+    return [
+      for (final p in _recent)
+        if (byPath[p] != null) byPath[p]!
+    ];
+  }
+
   List<_Doc> get _visible {
     final exts = _kFilters[_filter] ?? const <String>{};
     final q = _query.trim().toLowerCase();
@@ -289,9 +305,199 @@ class _SimpleDocumentsScreenState extends State<SimpleDocumentsScreen>
     return r;
   }
 
+  // 문서를 열면서 '최근 연 문서' 목록 맨 앞에 기록한다.
+  Future<void> _remember(_Doc d) async {
+    _recent
+      ..remove(d.path)
+      ..insert(0, d.path);
+    if (_recent.length > 10) _recent = _recent.sublist(0, 10);
+    try {
+      final box = await Hive.openBox('simple_prefs');
+      await box.put('recent', _recent);
+    } catch (_) {}
+  }
+
   void _open(_Doc d) {
+    _remember(d).then((_) {
+      if (mounted) setState(() {});
+    });
     context.push(
         '${RouteNames.viewer}?path=${Uri.encodeComponent(d.path)}&name=${Uri.encodeComponent(d.name)}');
+  }
+
+  // 문서를 길게 누르면 나오는 메뉴(공유 · 이름 바꾸기 · 삭제).
+  void _showActions(_Doc d) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: Text(d.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+              subtitle: Text(d.folder, maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+            ListTile(
+              leading: const Icon(Icons.share),
+              title: const Text('공유'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _share(d);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.drive_file_rename_outline),
+              title: const Text('이름 바꾸기'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _rename(d);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline, color: Colors.red),
+              title: const Text('삭제', style: TextStyle(color: Colors.red)),
+              onTap: () {
+                Navigator.pop(ctx);
+                _delete(d);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _toast(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  // 공유: 시스템 공유 창(카카오톡·메일 등)으로 파일을 보낸다.
+  Future<void> _share(_Doc d) async {
+    try {
+      await Share.shareXFiles([XFile(d.path)]);
+    } catch (_) {
+      _toast('공유하지 못했습니다');
+    }
+  }
+
+  // 이름 바꾸기: 같은 폴더 안에서 파일명을 바꾼다(확장자는 유지, 같은 이름이 있으면 거부).
+  Future<void> _rename(_Doc d) async {
+    final dot = d.name.lastIndexOf('.');
+    final base = dot > 0 ? d.name.substring(0, dot) : d.name;
+    final ext = dot > 0 ? d.name.substring(dot) : '';
+    final c = TextEditingController(text: base);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('이름 바꾸기'),
+        content: TextField(
+          controller: c,
+          autofocus: true,
+          decoration: InputDecoration(suffixText: ext),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('취소')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('확인')),
+        ],
+      ),
+    );
+    final nb = c.text.trim();
+    if (ok != true || nb.isEmpty || nb == base || nb.contains('/')) return;
+    final dir = d.path.substring(0, d.path.lastIndexOf('/'));
+    final np = '$dir/$nb$ext';
+    try {
+      if (File(np).existsSync()) {
+        _toast('같은 이름의 파일이 이미 있습니다');
+        return;
+      }
+      await File(d.path).rename(np);
+      if (_favs.remove(d.path)) _favs.add(np);
+      final i = _recent.indexOf(d.path);
+      if (i >= 0) _recent[i] = np;
+      _toast('이름을 바꿨습니다');
+      await _load();
+    } catch (_) {
+      _toast('이름을 바꾸지 못했습니다');
+    }
+  }
+
+  // 삭제: 확인창을 거친 뒤 파일을 지운다(되돌릴 수 없음).
+  Future<void> _delete(_Doc d) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('삭제'),
+        content: Text('"${d.name}" 파일을 삭제할까요?\n삭제하면 되돌릴 수 없습니다.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('취소')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('삭제')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await File(d.path).delete();
+      _favs.remove(d.path);
+      _recent.remove(d.path);
+      _toast('삭제했습니다');
+      await _load();
+    } catch (_) {
+      _toast('삭제하지 못했습니다');
+    }
+  }
+
+  // 폴더 메뉴: 자주 쓰는 폴더 바로가기 + 직접 선택 + 전체 보기.
+  Future<void> _folderMenu() async {
+    const base = '/storage/emulated/0';
+    final shortcuts = <String, String>{
+      '카카오톡 받은 파일': '$base/Download/KakaoTalk',
+      '다운로드': '$base/Download',
+      '문서': '$base/Documents',
+    }..removeWhere((k, v) => !Directory(v).existsSync());
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final e in shortcuts.entries)
+              ListTile(
+                leading: const Icon(Icons.folder),
+                title: Text(e.key),
+                onTap: () => Navigator.pop(ctx, e.value),
+              ),
+            ListTile(
+              leading: const Icon(Icons.folder_open),
+              title: const Text('폴더 직접 선택'),
+              onTap: () => Navigator.pop(ctx, '__pick__'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.phone_android),
+              title: const Text('폰 전체 보기'),
+              onTap: () => Navigator.pop(ctx, '__all__'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (picked == null) return;
+    if (picked == '__pick__') {
+      await _pickFolder();
+    } else if (picked == '__all__') {
+      await _saveFolder(null);
+    } else {
+      await _saveFolder(picked);
+    }
   }
 
   static String _size(int b) {
@@ -361,7 +567,13 @@ class _SimpleDocumentsScreenState extends State<SimpleDocumentsScreen>
           IconButton(
             tooltip: '폴더 선택',
             icon: const Icon(Icons.folder_open),
-            onPressed: _pickFolder,
+            onPressed: _folderMenu,
+          ),
+          IconButton(
+            tooltip: '화면 밝기(다크 모드)',
+            icon: const Icon(Icons.brightness_6_outlined),
+            onPressed: () =>
+                ref.read(themeModeProvider.notifier).toggleThemeMode(),
           ),
           IconButton(
             tooltip: '새로고침',
@@ -444,6 +656,29 @@ class _SimpleDocumentsScreenState extends State<SimpleDocumentsScreen>
                     style: Theme.of(context).textTheme.bodySmall),
               ),
             ),
+            if (_filter == '전체' && _query.trim().isEmpty && _recentDocs.isNotEmpty)
+              SizedBox(
+                height: 64,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  children: [
+                    for (final r in _recentDocs)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: ActionChip(
+                          avatar: Icon(_icon(r.ext), color: _color(r.ext), size: 18),
+                          label: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 140),
+                            child: Text(r.name,
+                                maxLines: 1, overflow: TextOverflow.ellipsis),
+                          ),
+                          onPressed: () => _open(r),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             if (_folder != null)
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
@@ -510,6 +745,7 @@ class _SimpleDocumentsScreenState extends State<SimpleDocumentsScreen>
                               onPressed: () => _toggleFav(d),
                             ),
                             onTap: () => _open(d),
+                            onLongPress: () => _showActions(d),
                           );
                         },
                       ),

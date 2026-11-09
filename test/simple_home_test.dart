@@ -49,4 +49,13 @@ void main() {
     expect(src, contains('이름순'));
     expect(src, contains("'★'"));
   });
+
+  test('공유·이름바꾸기·삭제·최근·바로가기·다크모드·읽던 위치 기능이 있다', () {
+    final src = File('lib/features/simple/simple_documents_screen.dart').readAsStringSync();
+    for (final k in ['Share.shareXFiles', '_rename', '_delete', '_recentDocs', '카카오톡 받은 파일', 'toggleThemeMode']) {
+      expect(src, contains(k));
+    }
+    final v = File('lib/features/viewer/presentation/screens/viewer_screen.dart').readAsStringSync();
+    expect(v, contains('_rememberPdfPage'));
+  });
 }
