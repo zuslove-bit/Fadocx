@@ -557,6 +557,8 @@ class MainActivity : FlutterActivity() {
             val mimeType = contentResolver.getType(uri) ?: return "bin"
             when {
                 mimeType.contains("pdf") -> "pdf"
+                mimeType.contains("hwpx") -> "hwpx"
+                mimeType.contains("hwp") || mimeType.contains("hancom") || mimeType.contains("haansoft") -> "hwp"
                 mimeType.contains("spreadsheet") -> "xlsx"
                 mimeType.contains("excel") -> "xls"
                 mimeType.contains("csv") -> "csv"
