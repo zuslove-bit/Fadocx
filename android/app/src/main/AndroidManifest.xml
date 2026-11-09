@@ -315,6 +315,25 @@
                 <data android:pathPattern=".*\\..*\\.pdf"/>
                 <data android:pathPattern=".*\\..*\\..*\\.pdf"/>
             </intent-filter>
+            <!-- [작동원리] '공유' 메뉴(다운로드 알림, 카카오톡, 파일 관리자의 공유 등)에서
+                 이 앱을 고를 수 있게 한다. MainActivity가 ACTION_SEND의 EXTRA_STREAM을 받아 열어 준다. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="application/pdf"/>
+                <data android:mimeType="application/x-hwp"/>
+                <data android:mimeType="application/haansofthwp"/>
+                <data android:mimeType="application/vnd.hancom.hwp"/>
+                <data android:mimeType="application/vnd.hancom.hwpx"/>
+                <data android:mimeType="application/hwp"/>
+                <data android:mimeType="application/msword"/>
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document"/>
+                <data android:mimeType="application/vnd.ms-powerpoint"/>
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.presentationml.presentation"/>
+                <data android:mimeType="application/vnd.ms-excel"/>
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"/>
+                <data android:mimeType="application/octet-stream"/>
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

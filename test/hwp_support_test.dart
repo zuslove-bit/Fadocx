@@ -28,6 +28,8 @@ void main() {
       expect(m, contains(r'pathPattern=".*\\.hwp"'));
       expect(m, contains(r'pathPattern=".*\\..*\\.hwpx"'));
       expect(m, contains('application/hwp"'));
+      // 공유 메뉴(ACTION_SEND)로도 열 수 있어야 한다.
+      expect(m, contains('android.intent.action.SEND'));
     });
 
     test('파일 선택기/탐색 목록 두 곳 모두 hwp, hwpx를 포함한다', () {
