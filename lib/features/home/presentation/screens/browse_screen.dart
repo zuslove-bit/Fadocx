@@ -1485,6 +1485,8 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen>
         'pdf',
         'doc',
         'docx',
+        'hwp',  // 한글(HWP 5.0)
+        'hwpx', // 한글(OWPML)
         'odt',
         'rtf',
         'txt',
@@ -1634,6 +1636,8 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen>
           'pdf',
           'doc',
           'docx',
+          'hwp',  // 한글(HWP 5.0)
+          'hwpx', // 한글(OWPML)
           'odt',
           'rtf',
           'txt',

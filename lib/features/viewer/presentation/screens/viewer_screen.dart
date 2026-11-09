@@ -14,6 +14,7 @@ import 'package:fadocx/features/viewer/presentation/widgets/media_viewer.dart';
 import 'package:video_player/video_player.dart';
 import 'package:fadocx/features/viewer/presentation/widgets/document_viewer_factory.dart';
 import 'package:fadocx/features/viewer/presentation/widgets/lokit_document_viewer.dart';
+import 'package:fadocx/features/viewer/presentation/widgets/hwp_viewer.dart';
 import 'package:fadocx/features/viewer/presentation/providers/lokit_viewer_notifier.dart';
 import 'package:fadocx/features/viewer/data/services/lokit_service.dart';
 import 'package:fadocx/features/viewer/presentation/providers/document_viewer_notifier.dart';
@@ -873,6 +874,15 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
           });
           _cachePdfTextStats(document, wordCount, lineCount);
         },
+      );
+    }
+
+    // 한글(HWP/HWPX)은 LOKit 대신 rhwp 기반 HwpViewer로 렌더링한다.
+    if (format == 'HWP' || format == 'HWPX') {
+      return HwpViewer(
+        filePath: widget.filePath,
+        fileName: widget.fileName,
+        onTap: _toggleControls,
       );
     }
 

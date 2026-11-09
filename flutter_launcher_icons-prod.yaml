@@ -2,5 +2,5 @@ flutter_launcher_icons:
   android: "ic_launcher"
   ios: false
   image_path: "assets/fadocx.png"
-  adaptive_icon_background: "#0D0D0D"
-  adaptive_icon_foreground: "assets/fadocx.png"
+  adaptive_icon_background: "#245C9F"
+  adaptive_icon_foreground: "assets/app_icon_foreground.png"

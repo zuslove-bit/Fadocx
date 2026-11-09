@@ -137,6 +137,18 @@ class DocumentViewerNotifier extends Notifier<ParsedDocumentState> {
           log.d('Routing to parseODT');
           document = await repository.parseODT(_filePath);
 
+        // 한글 문서: rhwp가 파일을 직접 읽으므로 여기서는 형식만 담은 빈 엔티티를 만든다.
+        case 'hwp':
+        case 'hwpx':
+          log.d('HWP/HWPX format - creating stub entity for rhwp viewer ($extension)');
+          document = ParsedDocumentEntity(
+            format: extension.toUpperCase(),
+            sheets: const [],
+            sheetCount: 0,
+            parsedAt: DateTime.now(),
+            sourceFilePath: _filePath,
+          );
+
         // LOKit-rendered formats (presentations + ODS)
         case 'ppt':
         case 'pptx':
