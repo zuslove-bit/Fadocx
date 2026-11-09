@@ -22,6 +22,16 @@ void main() {
       expect(m, contains('application/vnd.hancom.hwpx'));
     });
 
+    test('MIME을 모르는 파일 관리자용 확장자 필터(content/file)가 있다', () {
+      final m = _read('android/app/src/main/AndroidManifest.xml');
+      expect(m, contains('android:mimeType="*/*"'));
+      expect(m, contains(r'pathPattern=".*\\.hwp"'));
+      expect(m, contains(r'pathPattern=".*\\..*\\.hwpx"'));
+      expect(m, contains('application/hwp"'));
+      // 공유 메뉴(ACTION_SEND)로도 열 수 있어야 한다.
+      expect(m, contains('android.intent.action.SEND'));
+    });
+
     test('파일 선택기/탐색 목록 두 곳 모두 hwp, hwpx를 포함한다', () {
       final s = _read('lib/features/home/presentation/screens/browse_screen.dart');
       expect("'hwp',".allMatches(s).length, greaterThanOrEqualTo(2));
