@@ -297,7 +297,7 @@ class SettingsScreen extends ConsumerWidget {
                   ref
                       .read(themeModeProvider.notifier)
                       .setThemeModeFromString('dark');
-                  ref.read(localeProvider.notifier).setLocale('en');
+                  ref.read(localeProvider.notifier).setLocale('ko');
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text(l10n.settingsResetDone)),
@@ -421,6 +421,8 @@ class SettingsScreen extends ConsumerWidget {
         return l10n.languageChinese;
       case 'ja':
         return l10n.languageJapanese;
+      case 'ko':
+        return '한국어';
       case 'fr':
         return l10n.languageFrench;
       case 'ar':
@@ -1321,6 +1323,27 @@ class SettingsScreen extends ConsumerWidget {
                               : Theme.of(context).colorScheme.outline,
                         ),
                         onTap: () => pickLang('hi'),
+                      ),
+                      // [작동원리] 한국어 선택 행 — 선택하면 pickLang('ko')로 언어가 즉시 바뀌고 Hive에 저장된다.
+                      ConnectedSheetRow(
+                        leading: SheetIconChip.emoji(
+                          emoji: '🇰🇷',
+                          backgroundColor: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHigh
+                              .withValues(alpha: 0.9),
+                        ),
+                        title: '한국어',
+                        detail: const Text('Korean'),
+                        trailing: Icon(
+                          currentCode == 'ko'
+                              ? Icons.check_circle
+                              : Icons.circle_outlined,
+                          color: currentCode == 'ko'
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).colorScheme.outline,
+                        ),
+                        onTap: () => pickLang('ko'),
                       ),
                       ConnectedSheetRow(
                         leading: SheetIconChip.emoji(

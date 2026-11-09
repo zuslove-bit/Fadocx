@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Provider that injects the saved language before LocaleNotifier builds.
 /// Overridden in main() with the persisted language from Hive.
-final initialLocaleProvider = Provider<String>((ref) => 'en');
+final initialLocaleProvider = Provider<String>((ref) => 'ko');
 
 /// Notifier to manage locale changes
 class LocaleNotifier extends Notifier<Locale> {
