@@ -161,4 +161,13 @@ void main() {
     final h = File('lib/features/simple/simple_documents_screen.dart').readAsStringSync();
     expect(h, contains('ExternalOpen.active = false'));
   });
+
+  test('닫기: 열어 준 앱(referrer)으로 복귀', () {
+    final k = File('android/app/src/main/kotlin/com/fadseclab/fadocx/MainActivity.kt').readAsStringSync();
+    expect(k, contains('externalReferrerPkg'));
+    expect(k, contains('getLaunchIntentForPackage'));
+    expect(k, isNot(contains('finishAndRemoveTask')));
+    final m = File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
+    expect(m, contains('android.intent.category.LAUNCHER'));
+  });
 }
