@@ -69,7 +69,7 @@ void main() {
 
   test('prod 아이콘 배경이 새 색으로 바뀌었다', () {
     final c = File('android/app/src/prod/res/values/colors.xml').readAsStringSync();
-    expect(c, contains('#15478C'));
+    expect(c, contains('#2E2A8F'));
   });
 
   test('릴리스 빌드에서 코드 축소가 꺼져 있고 오류 원인을 보여 준다', () {
