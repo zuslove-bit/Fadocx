@@ -133,4 +133,12 @@ void main() {
     expect(v, contains('SystemNavigator.pop()'));
     expect(v, isNot(contains('onPressed: () => context.pop()')));
   });
+
+  test('변환 PDF 검증·원자적 쓰기·엑셀 메모리 보호', () {
+    final v = File('lib/features/viewer/presentation/screens/viewer_screen.dart').readAsStringSync();
+    expect(v, contains('_isValidPdf'));
+    final k = File('android/app/src/main/kotlin/com/fadseclab/fadocx/LOKitWrapper.kt').readAsStringSync();
+    expect(k, contains('.tmp'));
+    expect(k, contains('made >= 120'));
+  });
 }

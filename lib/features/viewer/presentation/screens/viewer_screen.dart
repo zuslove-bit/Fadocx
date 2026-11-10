@@ -73,6 +73,26 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
     'PPT', 'PPTX', 'ODP', 'DOCX', 'DOC', 'RTF', 'ODT', 'OTT', 'ODS'
   };
 
+  // [작동원리] 변환 결과가 온전한 PDF인지 확인한다(시작이 %PDF-, 끝부분에 %%EOF).
+  bool _isValidPdf(File f) {
+    try {
+      if (!f.existsSync() || f.lengthSync() < 100) return false;
+      final raf = f.openSync();
+      try {
+        final head = String.fromCharCodes(raf.readSync(5));
+        final len = raf.lengthSync();
+        final n = len < 1024 ? len : 1024;
+        raf.setPositionSync(len - n);
+        final tail = String.fromCharCodes(raf.readSync(n));
+        return head == '%PDF-' && tail.contains('%%EOF');
+      } finally {
+        raf.closeSync();
+      }
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> _convertToPdf() async {
     String? out;
     try {
@@ -80,14 +100,19 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
       final st = File(widget.filePath).statSync();
       final h = widget.filePath.codeUnits.fold<int>(7, (a, c) => (a * 31 + c) & 0x7fffffff);
       final f = File('${tmp.path}/lo2_pdf_${h}_${st.modified.millisecondsSinceEpoch}_${st.size}.pdf');
-      if (f.existsSync() && f.lengthSync() > 0) {
+      if (_isValidPdf(f)) {
         out = f.path;
       } else {
+        if (f.existsSync()) f.deleteSync(); // 깨진 캐시 제거
         await LOKitService.init();
         await LOKitService.loadDocument(widget.filePath);
         final ok = await LOKitService.convertToPdf(f.path);
         await LOKitService.closeDocument();
-        if (ok) out = f.path;
+        if (ok && _isValidPdf(f)) {
+          out = f.path;
+        } else if (f.existsSync()) {
+          f.deleteSync(); // 깨진 PDF는 버리고 기존 LOKit 화면으로 대체
+        }
       }
     } catch (e) {
       _log.w('PDF 변환 실패, 기존 LOKit 화면으로 대체: $e');

@@ -270,22 +270,45 @@ UserInstallation=file://$cacheDir/lo_user
                     else -> 0
                 }
                 if (type == Document.DOCTYPE_SPREADSHEET) {
-                    // [작동원리] 엑셀: 시트마다 사용 영역을 가로 1400px로 맞추고, 세로로 A4 비율 조각으로
-                    // 잘라 PDF 페이지로 만든다(Word/PPT처럼 이어서 스크롤). 최대 300페이지.
-                    for (s in 0 until doc.parts) {
-                        doc.setPart(s)
-                        val tw = doc.documentWidth.toInt()
-                        val th = doc.documentHeight.toInt()
-                        if (tw <= 0 || th <= 0) continue
-                        val sliceTw = tw
-                        val sliceTh = (tw * 1.4).toInt().coerceAtLeast(1)
-                        var y = 0
-                        while (y < th && made < 300) {
-                            val h = minOf(sliceTh, th - y)
-                            val wPx = 1400
-                            val hPx = (wPx.toLong() * h / sliceTw).toInt().coerceIn(1, 4000)
+                    // [작동원리] 엑셀: 시트마다 '인쇄 페이지 영역'(있으면) 또는 A4 비율 조각으로 나눠
+                    // 가로 1200px 그림으로 그려 PDF 페이지로 만든다(Word/PPT처럼 이어서 스크롤).
+                    // 메모리 보호를 위해 한 장 최대 세로 1700px, 전체 최대 120페이지.
+                    val wPx = 1200
+                    for (sIdx in 0 until doc.parts) {
+                        if (made >= 120) break
+                        doc.setPart(sIdx)
+                        val rects = ArrayList<IntArray>()
+                        try {
+                            val raw = doc.partPageRectangles
+                            if (raw != null) {
+                                val nums = Regex("-?\\d+").findAll(raw).map { it.value.toInt() }.toList()
+                                var k = 0
+                                while (k + 3 < nums.size) {
+                                    if (nums[k + 2] > 0 && nums[k + 3] > 0) {
+                                        rects.add(intArrayOf(nums[k], nums[k + 1], nums[k + 2], nums[k + 3]))
+                                    }
+                                    k += 4
+                                }
+                            }
+                        } catch (e: Throwable) {
+                            Log.w(TAG, "partPageRectangles unavailable", e)
+                        }
+                        if (rects.isEmpty()) {
+                            val tw = doc.documentWidth.toInt()
+                            val th = doc.documentHeight.toInt()
+                            if (tw <= 0 || th <= 0) continue
+                            val sliceTh = (tw * 1.4).toInt().coerceAtLeast(1)
+                            var y = 0
+                            while (y < th && rects.size < 40) {
+                                rects.add(intArrayOf(0, y, tw, minOf(sliceTh, th - y)))
+                                y += sliceTh
+                            }
+                        }
+                        for (r in rects) {
+                            if (made >= 120) break
+                            val hPx = (wPx.toLong() * r[3] / r[2]).toInt().coerceIn(1, 1700)
                             val buffer = ByteBuffer.allocateDirect(wPx * hPx * 4)
-                            doc.paintTile(buffer, wPx, hPx, 0, y, sliceTw, h)
+                            doc.paintTile(buffer, wPx, hPx, r[0], r[1], r[2], r[3])
                             val bmp = Bitmap.createBitmap(wPx, hPx, Bitmap.Config.ARGB_8888)
                             buffer.rewind()
                             bmp.copyPixelsFromBuffer(buffer)
@@ -296,7 +319,6 @@ UserInstallation=file://$cacheDir/lo_user
                             pdf.finishPage(page)
                             bmp.recycle()
                             made++
-                            y += h
                         }
                     }
                 }
@@ -319,10 +341,18 @@ UserInstallation=file://$cacheDir/lo_user
                     made++
                 }
                 if (made > 0) {
-                    FileOutputStream(outPath).use { pdf.writeTo(it) }
+                    // 임시 파일에 쓴 뒤 이름을 바꿔, 중간에 끊겨도 깨진 PDF가 남지 않게 한다.
+                    val tmp = File(outPath + ".tmp")
+                    FileOutputStream(tmp).use { pdf.writeTo(it) }
+                    File(outPath).delete()
+                    if (!tmp.renameTo(File(outPath))) {
+                        tmp.delete()
+                        made = 0
+                    }
                 }
             } catch (e: Throwable) {
                 Log.e(TAG, "saveAsImagePdf failed", e)
+                File(outPath + ".tmp").delete()
                 made = 0
             } finally {
                 pdf.close()
