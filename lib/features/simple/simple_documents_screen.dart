@@ -549,15 +549,7 @@ class _SimpleDocumentsScreenState extends ConsumerState<SimpleDocumentsScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        // [작동원리] 제목 아래에 제작자 표기를 작은 글씨로 함께 보여 준다.
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: const [
-            Text('내 문서'),
-            Text('by 함석현', style: TextStyle(fontSize: 11, fontWeight: FontWeight.normal)),
-          ],
-        ),
+        title: const Text('내 문서'),
         actions: [
           PopupMenuButton<String>(
             tooltip: '정렬',
@@ -587,6 +579,23 @@ class _SimpleDocumentsScreenState extends ConsumerState<SimpleDocumentsScreen>
             tooltip: '새로고침',
             icon: const Icon(Icons.refresh),
             onPressed: _load,
+          ),
+          // [작동원리] 앱 정보 대화상자: 앱 이름·버전·만든이를 보여 준다.
+          IconButton(
+            tooltip: '앱 정보',
+            icon: const Icon(Icons.info_outline),
+            onPressed: () => showAboutDialog(
+              context: context,
+              applicationName: '문서 뷰어',
+              applicationVersion: '1.0.0',
+              applicationIcon: const Icon(Icons.description, size: 40),
+              children: const [
+                SizedBox(height: 8),
+                Text('만든이: by 함석현'),
+                SizedBox(height: 4),
+                Text('한글·Word·Excel·PowerPoint·PDF 문서를 보는 개인용 뷰어입니다.'),
+              ],
+            ),
           ),
         ],
       ),

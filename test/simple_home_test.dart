@@ -114,5 +114,7 @@ void main() {
   test('제작자 표기', () {
     final h = File('lib/features/simple/simple_documents_screen.dart').readAsStringSync();
     expect(h, contains('by 함석현'));
+    expect(h, contains("tooltip: '앱 정보'"));
+    expect(h, contains('showAboutDialog'));
   });
 }
