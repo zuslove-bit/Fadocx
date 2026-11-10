@@ -7,6 +7,12 @@ final log = Logger();
 /// Service to handle file intents from other apps (Android)
 /// When user opens a file with our app from Files app or another app,
 /// this service captures and routes to the viewer
+/// [작동원리] 지금 열린 문서가 다른 앱(카카오톡·내 파일 등)에서 들어온 것인지 기억한다.
+/// 주소(URL)의 값에 의존하지 않아 파일 이름에 특수문자가 있어도 안전하다.
+class ExternalOpen {
+  static bool active = false;
+}
+
 class FileIntentService {
   static const _channel = MethodChannel('com.fadseclab.fadocx/file_intent');
   static final _fileIntentController = StreamController<String>.broadcast();

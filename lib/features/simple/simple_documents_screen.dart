@@ -13,6 +13,7 @@ import 'dart:isolate';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:fadocx/services/file_intent_service.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -321,6 +322,7 @@ class _SimpleDocumentsScreenState extends ConsumerState<SimpleDocumentsScreen>
     _remember(d).then((_) {
       if (mounted) setState(() {});
     });
+    ExternalOpen.active = false; // 앱 안 목록에서 연 문서
     context.push(
         '${RouteNames.viewer}?path=${Uri.encodeComponent(d.path)}&name=${Uri.encodeComponent(d.name)}');
   }

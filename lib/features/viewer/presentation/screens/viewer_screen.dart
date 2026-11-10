@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:fadocx/services/file_intent_service.dart';
 import 'dart:io';
 
 import 'package:hive_flutter/hive_flutter.dart';
@@ -756,8 +757,9 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
   // [작동원리] 문서를 닫는 공통 동작. 다른 앱(내 파일 등)에서 연 문서(ext=1)는 앱을 종료해
   // 원래 앱으로 돌아가고, 앱 안 목록에서 연 문서는 평소처럼 목록으로 돌아간다.
   void _closeViewer() {
-    final external =
+    final external = ExternalOpen.active ||
         GoRouterState.of(context).uri.queryParameters['ext'] == '1';
+    ExternalOpen.active = false;
     // 화면(경로)을 먼저 닫아 문서 상태를 비운 뒤, 외부 앱에서 연 경우에만 앱을 종료한다.
     // (화면을 남겨 둔 채 종료하면 다음 파일이 이전 문서 상태로 열리는 문제가 있었다.)
     if (context.canPop()) {

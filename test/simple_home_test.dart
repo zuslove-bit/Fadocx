@@ -152,4 +152,13 @@ void main() {
     final v = File('lib/features/viewer/presentation/screens/viewer_screen.dart').readAsStringSync();
     expect(v, contains('onLoadFailed'));
   });
+
+  test('외부 문서 여부는 URL이 아닌 전역 플래그로도 판단', () {
+    final f = File('lib/services/file_intent_service.dart').readAsStringSync();
+    expect(f, contains('class ExternalOpen'));
+    final v = File('lib/features/viewer/presentation/screens/viewer_screen.dart').readAsStringSync();
+    expect(v, contains('ExternalOpen.active'));
+    final h = File('lib/features/simple/simple_documents_screen.dart').readAsStringSync();
+    expect(h, contains('ExternalOpen.active = false'));
+  });
 }
