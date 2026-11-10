@@ -117,4 +117,11 @@ void main() {
     expect(h, contains("tooltip: '앱 정보'"));
     expect(h, contains('showAboutDialog'));
   });
+
+  test('새 아이콘·스플래시 색상', () {
+    final c = File('android/app/src/prod/res/values/colors.xml').readAsStringSync();
+    expect(c, contains('#2E2A8F'));
+    final v = File('android/app/src/main/res/values-v31/styles.xml').readAsStringSync();
+    expect(v, contains('#1E1B4B'));
+  });
 }
