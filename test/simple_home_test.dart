@@ -132,6 +132,9 @@ void main() {
     expect(v, contains('_closeViewer'));
     expect(v, contains('SystemNavigator.pop()'));
     expect(v, isNot(contains('onPressed: () => context.pop()')));
+    expect(v, contains('context.canPop()'));
+    expect(m, contains("_router.go('/')"));
+    expect(v, contains('staleDoc'));
   });
 
   test('변환 PDF 검증·원자적 쓰기·엑셀 메모리 보호', () {

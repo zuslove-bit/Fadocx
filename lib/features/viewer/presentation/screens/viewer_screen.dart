@@ -681,8 +681,11 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
           .read(recentFilesMutatorProvider)
           .updateDateOpened(widget.filePath);
 
+      final staleDoc = docState.document != null &&
+          docState.document!.sourceFilePath.isNotEmpty &&
+          docState.document!.sourceFilePath != widget.filePath;
       if (!docState.isLoading &&
-          docState.document == null &&
+          (docState.document == null || staleDoc) &&
           !docState.hasError) {
         _log.d('Loading document: ');
         ref
@@ -755,10 +758,13 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
   void _closeViewer() {
     final external =
         GoRouterState.of(context).uri.queryParameters['ext'] == '1';
+    // 화면(경로)을 먼저 닫아 문서 상태를 비운 뒤, 외부 앱에서 연 경우에만 앱을 종료한다.
+    // (화면을 남겨 둔 채 종료하면 다음 파일이 이전 문서 상태로 열리는 문제가 있었다.)
+    if (context.canPop()) {
+      context.pop();
+    }
     if (external) {
       SystemNavigator.pop();
-    } else {
-      context.pop();
     }
   }
 

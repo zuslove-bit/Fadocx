@@ -112,6 +112,8 @@ class _MyAppState extends ConsumerState<MyApp> {
         final fileName = filePath.split('/').last;
         log.i('File intent: navigating to viewer: $fileName');
         // ext=1: 다른 앱(내 파일 등)에서 연 문서임을 표시한다(닫을 때 원래 앱으로 복귀).
+        // 이미 열려 있는 문서 화면이 있으면 먼저 정리해 이전 문서 상태가 섞이지 않게 한다.
+        _router.go('/');
         _router.push('/viewer?path=$encodedPath&name=$fileName&ext=1');
       }, onError: (e) => log.e('File intent error: $e'));
 
