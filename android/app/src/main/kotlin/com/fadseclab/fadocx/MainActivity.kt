@@ -119,6 +119,16 @@ class MainActivity : FlutterActivity() {
                 if (call.method == "getOpenFileIntent") {
                     result.success(pendingFileIntent?.let { mapOf("filePath" to it) })
                     pendingFileIntent = null
+                } else if (call.method == "closeToPrevious") {
+                    // [작동원리] 다른 앱(카카오톡·내 파일 등)에서 연 문서를 닫을 때: 이 앱의 작업을 뒤로 보내
+                    // 직전 앱이 바로 보이게 한 뒤, 이 앱의 작업을 정리(종료)한다.
+                    result.success(true)
+                    try {
+                        moveTaskToBack(true)
+                    } catch (e: Throwable) {
+                        Log.w("MainActivity", "moveTaskToBack failed", e)
+                    }
+                    finishAndRemoveTask()
                 } else {
                     result.notImplemented()
                 }

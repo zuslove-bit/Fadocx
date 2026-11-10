@@ -130,6 +130,7 @@ void main() {
     expect(m, contains('&ext=1'));
     final v = File('lib/features/viewer/presentation/screens/viewer_screen.dart').readAsStringSync();
     expect(v, contains('_closeViewer'));
+    expect(v, contains('closeToPrevious'));
     expect(v, contains('SystemNavigator.pop()'));
     expect(v, isNot(contains('onPressed: () => context.pop()')));
     expect(v, contains('context.canPop()'));

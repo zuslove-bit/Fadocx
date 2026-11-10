@@ -764,7 +764,12 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
       context.pop();
     }
     if (external) {
-      SystemNavigator.pop();
+      // 네이티브에서 직전 앱으로 확실히 돌려보낸다(실패 시 일반 종료로 대체).
+      const MethodChannel('com.fadseclab.fadocx/file_intent')
+          .invokeMethod('closeToPrevious')
+          .catchError((_) {
+        SystemNavigator.pop();
+      });
     }
   }
 
