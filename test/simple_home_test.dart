@@ -110,4 +110,9 @@ void main() {
     final m = File('android/app/src/main/kotlin/com/fadseclab/fadocx/MainActivity.kt').readAsStringSync();
     expect(m, contains('saveAsImagePdf(out) > 0'));
   });
+
+  test('제작자 표기', () {
+    final h = File('lib/features/simple/simple_documents_screen.dart').readAsStringSync();
+    expect(h, contains('by 함석현'));
+  });
 }

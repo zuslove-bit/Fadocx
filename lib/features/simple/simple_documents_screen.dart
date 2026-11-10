@@ -549,7 +549,15 @@ class _SimpleDocumentsScreenState extends ConsumerState<SimpleDocumentsScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('내 문서'),
+        // [작동원리] 제목 아래에 제작자 표기를 작은 글씨로 함께 보여 준다.
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Text('내 문서'),
+            Text('by 함석현', style: TextStyle(fontSize: 11, fontWeight: FontWeight.normal)),
+          ],
+        ),
         actions: [
           PopupMenuButton<String>(
             tooltip: '정렬',
