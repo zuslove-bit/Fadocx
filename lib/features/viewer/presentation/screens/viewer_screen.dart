@@ -968,6 +968,15 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
         key: _pdfViewerKey,
         filePath: _pdfPath ?? widget.filePath,
         storageId: widget.filePath,
+        // 변환한 PDF가 열리지 않으면 캐시를 지우고 기존 LOKit 화면으로 대체한다.
+        onLoadFailed: _pdfPath == null
+            ? null
+            : () {
+                try {
+                  File(_pdfPath!).deleteSync();
+                } catch (_) {}
+                if (mounted) setState(() => _pdfPath = null);
+              },
         fileName: widget.fileName,
         invertColors: _invertColors,
         textMode: _textMode,

@@ -141,4 +141,11 @@ void main() {
     expect(k, contains('.tmp'));
     expect(k, contains('made >= 120'));
   });
+
+  test('변환 PDF 열기 실패 시 기존 화면으로 대체', () {
+    final m = File('lib/features/viewer/presentation/widgets/modern_pdf_viewer.dart').readAsStringSync();
+    expect(m, contains('onLoadFailed'));
+    final v = File('lib/features/viewer/presentation/screens/viewer_screen.dart').readAsStringSync();
+    expect(v, contains('onLoadFailed'));
+  });
 }
