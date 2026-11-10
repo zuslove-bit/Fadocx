@@ -111,7 +111,8 @@ class _MyAppState extends ConsumerState<MyApp> {
         final encodedPath = Uri.encodeComponent(filePath);
         final fileName = filePath.split('/').last;
         log.i('File intent: navigating to viewer: $fileName');
-        _router.push('/viewer?path=$encodedPath&name=$fileName');
+        // ext=1: 다른 앱(내 파일 등)에서 연 문서임을 표시한다(닫을 때 원래 앱으로 복귀).
+        _router.push('/viewer?path=$encodedPath&name=$fileName&ext=1');
       }, onError: (e) => log.e('File intent error: $e'));
 
       // Initialize file intent service AFTER listener is set up

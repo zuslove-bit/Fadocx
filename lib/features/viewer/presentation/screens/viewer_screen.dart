@@ -725,6 +725,18 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
     super.dispose();
   }
 
+  // [작동원리] 문서를 닫는 공통 동작. 다른 앱(내 파일 등)에서 연 문서(ext=1)는 앱을 종료해
+  // 원래 앱으로 돌아가고, 앱 안 목록에서 연 문서는 평소처럼 목록으로 돌아간다.
+  void _closeViewer() {
+    final external =
+        GoRouterState.of(context).uri.queryParameters['ext'] == '1';
+    if (external) {
+      SystemNavigator.pop();
+    } else {
+      context.pop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final docState = ref.watch(documentViewerProvider);
@@ -735,7 +747,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) {
-          context.pop();
+          _closeViewer();
         }
       },
       child: Scaffold(
@@ -1357,7 +1369,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
                                     ? _chevronRightNoMirror
                                     : _chevronLeftNoMirror,
                               ),
-                              onPressed: () => context.pop(),
+                              onPressed: _closeViewer,
                               tooltip: _l10n.back,
                               iconSize: 20,
                               constraints: const BoxConstraints(
@@ -1377,7 +1389,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
                                 IconButton(
                                   icon: const Icon(Icons.close),
                                   tooltip: '문서 닫기',
-                                  onPressed: () => context.pop(),
+                                  onPressed: _closeViewer,
                                   iconSize: 24,
                                   constraints: const BoxConstraints(
                                       minWidth: 40, minHeight: 40),

@@ -124,4 +124,13 @@ void main() {
     final v = File('android/app/src/main/res/values-v31/styles.xml').readAsStringSync();
     expect(v, contains('#1E1B4B'));
   });
+
+  test('외부 앱에서 연 문서는 닫으면 원래 앱으로 돌아간다', () {
+    final m = File('lib/main.dart').readAsStringSync();
+    expect(m, contains('&ext=1'));
+    final v = File('lib/features/viewer/presentation/screens/viewer_screen.dart').readAsStringSync();
+    expect(v, contains('_closeViewer'));
+    expect(v, contains('SystemNavigator.pop()'));
+    expect(v, isNot(contains('onPressed: () => context.pop()')));
+  });
 }
