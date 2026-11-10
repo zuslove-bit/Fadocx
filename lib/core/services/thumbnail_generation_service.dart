@@ -1432,27 +1432,26 @@ class ThumbnailGenerationService {
     final lines = text.split(RegExp(r'\r\n|\r|\n')).length;
     if (language == 'markdown') {
       final minutes = words == 0 ? 0 : (words / _readingWordsPerMinute).ceil();
-      return '${minutes == 0 ? '<1' : minutes} min read • $words words • $lines lines';
+      return '${minutes == 0 ? '1분 미만' : '약 $minutes분'} 읽기 • 단어 $words개 • $lines줄';
     }
     if (language == 'json') {
       final objectCount = '{'.allMatches(text).length;
       final arrayCount = '['.allMatches(text).length;
-      final parts = <String>['$lines lines'];
-      if (objectCount > 0) parts.add('$objectCount ${objectCount == 1 ? 'object' : 'objects'}');
-      if (arrayCount > 0) parts.add('$arrayCount ${arrayCount == 1 ? 'array' : 'arrays'}');
+      final parts = <String>['$lines줄'];
+      if (objectCount > 0) parts.add('객체 $objectCount개');
+      if (arrayCount > 0) parts.add('배열 $arrayCount개');
       return parts.join(' • ');
     }
     if (language != null) {
       final classCount = RegExp(r'\b(class|interface|enum)\s+\w+').allMatches(text).length;
       final funcCount = RegExp(r'\b(function|def|void|int|String|bool|var|let|const|public|private|static|async)\s+\w+\s*[(<]').allMatches(text).length;
-      final parts = <String>['$lines lines'];
-      if (classCount > 0) parts.add('$classCount ${classCount == 1 ? 'class' : 'classes'}');
-      if (funcCount > 0) parts.add('$funcCount ${funcCount == 1 ? 'function' : 'functions'}');
+      final parts = <String>['$lines줄'];
+      if (classCount > 0) parts.add('클래스 $classCount개');
+      if (funcCount > 0) parts.add('함수 $funcCount개');
       return parts.join(' • ');
     }
     final minutes = words == 0 ? 0 : (words / _readingWordsPerMinute).ceil();
-    final minuteLabel = minutes == 1 ? 'minute' : 'minutes';
-    return '${minutes == 0 ? '<1' : minutes} $minuteLabel read • $words words • $lines lines';
+    return '${minutes == 0 ? '1분 미만' : '약 $minutes분'} 읽기 • 단어 $words개 • $lines줄';
   }
 
   static String _buildPdfPreviewStats(

@@ -1,6 +1,10 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:io';
+
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
 import 'package:go_router/go_router.dart';
@@ -59,6 +63,64 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
   bool _invertColors = false;
   bool _textMode = false;
   bool _bottomMenuExpanded = false;
+  // [작동원리] Word/PPT/ODS 등은 먼저 LibreOffice로 PDF로 변환(캐시)한 뒤 PDF 화면으로
+  // 보여 준다. 그러면 PDF·한글처럼 다음 페이지가 아래에 이어져 스크롤되고, 사이드 메뉴
+  // (북마크·메모·검색·목차)와 텍스트 보기도 그대로 쓸 수 있다. 변환 실패 시 기존 LOKit 화면.
+  String? _pdfPath;
+  bool _convertTried = false;
+  bool _converting = false;
+  static const _convertible = {
+    'PPT', 'PPTX', 'ODP', 'DOCX', 'DOC', 'RTF', 'ODT', 'OTT', 'ODS'
+  };
+
+  Future<void> _convertToPdf() async {
+    String? out;
+    try {
+      final tmp = await getTemporaryDirectory();
+      final st = File(widget.filePath).statSync();
+      final h = widget.filePath.codeUnits.fold<int>(7, (a, c) => (a * 31 + c) & 0x7fffffff);
+      final f = File('${tmp.path}/lo2_pdf_${h}_${st.modified.millisecondsSinceEpoch}_${st.size}.pdf');
+      if (f.existsSync() && f.lengthSync() > 0) {
+        out = f.path;
+      } else {
+        await LOKitService.init();
+        await LOKitService.loadDocument(widget.filePath);
+        final ok = await LOKitService.convertToPdf(f.path);
+        await LOKitService.closeDocument();
+        if (ok) out = f.path;
+      }
+    } catch (e) {
+      _log.w('PDF 변환 실패, 기존 LOKit 화면으로 대체: $e');
+    }
+    if (!mounted) return;
+    setState(() {
+      _pdfPath = out;
+      _converting = false;
+    });
+  }
+  // [작동원리] PDF를 처음 열 때 한 번만 저장된 마지막 페이지로 이동하고(_posRestored),
+  // 이후 페이지가 바뀔 때마다 Hive 'simple_prefs'에 'pos|<파일경로>'로 저장한다.
+  bool _posRestored = false;
+
+  Future<void> _rememberPdfPage(int current, int total) async {
+    try {
+      final box = await Hive.openBox('simple_prefs');
+      final key = 'pos|${widget.filePath}';
+      if (!_posRestored) {
+        _posRestored = true;
+        final saved = box.get(key) as int?;
+        if (saved != null && saved > 1 && saved <= total && saved != current) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              (_pdfViewerKey.currentState as dynamic)?.goToPage(saved);
+            }
+          });
+        }
+        return; // 복원 시도 첫 호출에서는 덮어쓰지 않는다.
+      }
+      await box.put(key, current);
+    } catch (_) {}
+  }
   bool _sidebarOpen = false;
   double _lokitZoom = 1.0;
   int _currentPage = 1;
@@ -93,7 +155,8 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
 
   bool _isPdfDocument() {
     final doc = ref.read(documentViewerProvider).document;
-    return doc?.format.toUpperCase() == 'PDF';
+    // LibreOffice로 PDF 변환에 성공한 Word/PPT 등도 PDF 화면으로 취급한다.
+    return _pdfPath != null || doc?.format.toUpperCase() == 'PDF';
   }
 
   bool _isSpreadsheet() {
@@ -158,11 +221,13 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
   }
 
   bool _isLOKitDocument() {
+    if (_pdfPath != null) return false; // PDF로 변환된 경우 LOKit 화면이 아님
     final format =
         ref.read(documentViewerProvider).document?.format.toUpperCase();
     return format == 'PPT' ||
         format == 'PPTX' ||
         format == 'ODP' ||
+        format == 'ODS' ||
         format == 'DOCX' ||
         format == 'DOC' ||
         format == 'RTF' ||
@@ -834,7 +899,27 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
   }
 
   Widget _buildContentViewer({required ParsedDocumentEntity document}) {
-    final format = document.format.toUpperCase();
+    var format = document.format.toUpperCase();
+    if (_convertible.contains(format) && _pdfPath == null) {
+      if (!_convertTried) {
+        _convertTried = true;
+        _converting = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) => _convertToPdf());
+      }
+      if (_converting) {
+        return const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('문서를 준비하는 중입니다...'),
+            ],
+          ),
+        );
+      }
+    }
+    if (_pdfPath != null) format = 'PDF';
     _log.d(
       'Building viewer for format=$format rich=${document.hasRichDocument} '
       'fidelity=${document.fidelityLevel.name} warnings=${document.parseWarnings.length}',
@@ -844,7 +929,8 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
     if (format == 'PDF') {
       return ModernPdfViewer(
         key: _pdfViewerKey,
-        filePath: widget.filePath,
+        filePath: _pdfPath ?? widget.filePath,
+        storageId: widget.filePath,
         fileName: widget.fileName,
         invertColors: _invertColors,
         textMode: _textMode,
@@ -861,6 +947,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
               _currentPage = current;
               _totalPages = total;
             });
+            _rememberPdfPage(current, total);
           }
         },
         onSearchHighlight: _onSearchHighlight,
@@ -1280,13 +1367,32 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
                               padding: EdgeInsets.zero,
                             ),
                           ),
+                          // 문서 닫기(X): 파일 이름이 길어도 항상 보이도록 오른쪽에 둔다.
                           Align(
                             alignment: Alignment.centerRight,
-                            child: _buildResetZoomButton(),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _buildResetZoomButton(),
+                                IconButton(
+                                  icon: const Icon(Icons.close),
+                                  tooltip: '문서 닫기',
+                                  onPressed: () => context.pop(),
+                                  iconSize: 24,
+                                  constraints: const BoxConstraints(
+                                      minWidth: 40, minHeight: 40),
+                                  padding: EdgeInsets.zero,
+                                ),
+                              ],
+                            ),
                           ),
                           Center(
                             child: ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 420),
+                              // 제목이 양쪽 버튼(뒤로/닫기)과 겹치지 않도록 폭을 제한한다.
+                              constraints: BoxConstraints(
+                                  maxWidth: (MediaQuery.sizeOf(context).width -
+                                          176)
+                                      .clamp(120.0, 420.0)),
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -1369,7 +1475,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
     int wordCount,
     int lineCount,
   ) async {
-    if (document.format.toUpperCase() != 'PDF') return;
+    if (_pdfPath == null && document.format.toUpperCase() != 'PDF') return;
     if (document.wordCount == wordCount && document.lineCount == lineCount) {
       return;
     }
@@ -1415,17 +1521,18 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
     IconData icon,
     VoidCallback? onTap,
   ) {
+    // 터치하기 쉽도록 버튼을 키웠다(32→44, 아이콘 16→26).
     return SizedBox(
-      width: 32,
-      height: 32,
+      width: 44,
+      height: 44,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(10),
           child: Icon(
             icon,
-            size: 16,
+            size: 26,
             color: onTap != null
                 ? Theme.of(context).colorScheme.primary
                 : Theme.of(context)
@@ -1442,7 +1549,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
     return GestureDetector(
       onTap: _totalPages > 1 ? _showGoToPageDialog : null,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: Theme.of(context)
               .colorScheme
@@ -1452,7 +1559,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
         ),
         child: Text(
           '$_currentPage/$_totalPages',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
                 color: Theme.of(context).colorScheme.primary,
               ),
@@ -1471,7 +1578,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: const EdgeInsets.symmetric(vertical: 18),
           decoration: BoxDecoration(
             color: Theme.of(context)
                 .colorScheme
@@ -1482,9 +1589,13 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 20),
-              const SizedBox(height: 4),
-              Text(label, style: Theme.of(context).textTheme.labelSmall),
+              Icon(icon, size: 30),
+              const SizedBox(height: 6),
+              Text(label,
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(fontWeight: FontWeight.w600)),
             ],
           ),
         ),
@@ -2099,7 +2210,9 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
     final docState = ref.watch(documentViewerProvider);
     if (docState.document == null) return const SizedBox.shrink();
 
-    final format = docState.document!.format.toUpperCase();
+    final format = _pdfPath != null
+        ? 'PDF'
+        : docState.document!.format.toUpperCase();
 
     if (format == 'PDF') {
       return Row(
@@ -2358,12 +2471,20 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
   }
 
   /// Build the expanded menu content (Copy, Invert, TextMode, Theme buttons)
+  // 하단 확장 메뉴: 형식별 도구 행(PDF와 같은 복사·반전·텍스트·테마).
+  // 북마크·메모는 왼쪽 사이드 메뉴에서 쓴다.
   Widget _buildExpandedMenuContent(BuildContext context) {
+    return _buildFormatMenuRow(context);
+  }
+
+  Widget _buildFormatMenuRow(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final docState = ref.watch(documentViewerProvider);
     if (docState.document == null) return const SizedBox.shrink();
 
-    final format = docState.document!.format.toUpperCase();
+    final format = _pdfPath != null
+        ? 'PDF'
+        : docState.document!.format.toUpperCase();
 
     if (format == 'PDF') {
       return Row(

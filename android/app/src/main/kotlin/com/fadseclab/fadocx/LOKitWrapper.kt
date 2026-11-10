@@ -2,6 +2,8 @@ package com.fadseclab.fadocx
 
 import android.app.Activity
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.pdf.PdfDocument
 import android.util.Log
 import org.libreoffice.kit.Document
 import org.libreoffice.kit.LibreOfficeKit
@@ -247,6 +249,100 @@ UserInstallation=file://$cacheDir/lo_user
             } catch (e: Exception) {
                 Log.e(TAG, "renderTextPage failed for page $pageIndex", e)
                 return null
+            }
+        }
+    }
+
+    // [작동원리] 글꼴 문제 회피용: 각 페이지를 '그림 그리기(paintTile)'로 렌더링한 뒤
+    // Android PdfDocument로 한 장씩 묶어 PDF를 만든다. (그리기 경로는 한글이 정상 표시됨)
+    // 글 문서(Writer)는 페이지 사각형별로, 프레젠테이션은 슬라이드별로 그린다.
+    // 반환: 만든 페이지 수(0이면 실패/미지원 → 호출측이 기존 PDF 내보내기로 대체).
+    fun saveAsImagePdf(outPath: String): Int {
+        synchronized(syncLock) {
+            val doc = document ?: return 0
+            val type = doc.documentType
+            val pdf = PdfDocument()
+            var made = 0
+            try {
+                val count = when (type) {
+                    Document.DOCTYPE_TEXT -> getPageCount()
+                    Document.DOCTYPE_PRESENTATION -> doc.parts
+                    else -> 0
+                }
+                if (type == Document.DOCTYPE_SPREADSHEET) {
+                    // [작동원리] 엑셀: 시트마다 사용 영역을 가로 1400px로 맞추고, 세로로 A4 비율 조각으로
+                    // 잘라 PDF 페이지로 만든다(Word/PPT처럼 이어서 스크롤). 최대 300페이지.
+                    for (s in 0 until doc.parts) {
+                        doc.setPart(s)
+                        val tw = doc.documentWidth.toInt()
+                        val th = doc.documentHeight.toInt()
+                        if (tw <= 0 || th <= 0) continue
+                        val sliceTw = tw
+                        val sliceTh = (tw * 1.4).toInt().coerceAtLeast(1)
+                        var y = 0
+                        while (y < th && made < 300) {
+                            val h = minOf(sliceTh, th - y)
+                            val wPx = 1400
+                            val hPx = (wPx.toLong() * h / sliceTw).toInt().coerceIn(1, 4000)
+                            val buffer = ByteBuffer.allocateDirect(wPx * hPx * 4)
+                            doc.paintTile(buffer, wPx, hPx, 0, y, sliceTw, h)
+                            val bmp = Bitmap.createBitmap(wPx, hPx, Bitmap.Config.ARGB_8888)
+                            buffer.rewind()
+                            bmp.copyPixelsFromBuffer(buffer)
+                            val pw = wPx / 2
+                            val ph = (hPx / 2).coerceAtLeast(1)
+                            val page = pdf.startPage(PdfDocument.PageInfo.Builder(pw, ph, made + 1).create())
+                            page.canvas.drawBitmap(bmp, null, android.graphics.Rect(0, 0, pw, ph), android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG))
+                            pdf.finishPage(page)
+                            bmp.recycle()
+                            made++
+                            y += h
+                        }
+                    }
+                }
+                for (i in 0 until count) {
+                    // 페이지 하나를 PNG 바이트로 그린다(가로 약 1400px 기준).
+                    val bytes = (if (type == Document.DOCTYPE_TEXT) {
+                        renderTextPage(i, 1400, 2000, 1.0f)
+                    } else {
+                        renderPageHighQuality(i, 1600, 1200, 1.0f)
+                    }) ?: continue
+                    val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: continue
+                    // PDF 페이지 크기는 포인트 단위(px * 0.5 정도로 축소해 화면 비율 유지)
+                    val pw = (bmp.width * 0.5f).toInt().coerceAtLeast(1)
+                    val ph = (bmp.height * 0.5f).toInt().coerceAtLeast(1)
+                    val page = pdf.startPage(PdfDocument.PageInfo.Builder(pw, ph, made + 1).create())
+                    val dst = android.graphics.Rect(0, 0, pw, ph)
+                    page.canvas.drawBitmap(bmp, null, dst, android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG))
+                    pdf.finishPage(page)
+                    bmp.recycle()
+                    made++
+                }
+                if (made > 0) {
+                    FileOutputStream(outPath).use { pdf.writeTo(it) }
+                }
+            } catch (e: Throwable) {
+                Log.e(TAG, "saveAsImagePdf failed", e)
+                made = 0
+            } finally {
+                pdf.close()
+            }
+            return made
+        }
+    }
+
+    // [작동원리] 현재 열린 문서를 LibreOffice의 PDF 내보내기로 저장한다.
+    // Word/PPT/ODS 등을 PDF 화면(이어서 스크롤)으로 보여 주기 위해 사용한다.
+    fun saveAsPdf(outPath: String): Boolean {
+        synchronized(syncLock) {
+            val doc = document ?: return false
+            return try {
+                doc.saveAs(outPath, "pdf", "")
+                val f = File(outPath)
+                f.exists() && f.length() > 0
+            } catch (e: Exception) {
+                Log.e(TAG, "saveAsPdf failed", e)
+                false
             }
         }
     }

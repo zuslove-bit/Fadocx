@@ -82,9 +82,13 @@ class DocumentViewerNotifier extends Notifier<ParsedDocumentState> {
         case 'xlsx':
         case 'xls':
           log.d('Routing to parseXLSX for: $extension');
-          document = await repository.parseXLSX(
-            _filePath,
-            useNativeParsing: true,
+          // [작동원리] 엑셀도 Word/PPT처럼 PDF로 변환해 이어서 스크롤하도록 ODS 스텁으로 보낸다.
+          document = ParsedDocumentEntity(
+            format: 'ODS',
+            sheets: const [],
+            sheetCount: 0,
+            parsedAt: DateTime.now(),
+            sourceFilePath: _filePath,
           );
         case 'csv':
           log.d('Routing to native CSV parser');
@@ -110,10 +114,23 @@ class DocumentViewerNotifier extends Notifier<ParsedDocumentState> {
         // Document formats
         case 'docx':
           log.d('Routing to parseDOCX');
-          document = await repository.parseDOCX(_filePath);
+          // Word는 POI 파싱 대신 LibreOffice(PDF 변환)로 직접 보여 준다.
+          document = ParsedDocumentEntity(
+            format: 'DOCX',
+            sheets: const [],
+            sheetCount: 0,
+            parsedAt: DateTime.now(),
+            sourceFilePath: _filePath,
+          );
         case 'doc':
-          log.d('Routing to parseDOC');
-          document = await repository.parseDOC(_filePath);
+          log.d('Routing DOC to LOKit stub');
+          document = ParsedDocumentEntity(
+            format: 'DOC',
+            sheets: const [],
+            sheetCount: 0,
+            parsedAt: DateTime.now(),
+            sourceFilePath: _filePath,
+          );
         case 'txt':
         case 'java':
         case 'py':

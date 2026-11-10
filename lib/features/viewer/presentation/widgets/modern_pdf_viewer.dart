@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter/services.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:logger/logger.dart';
@@ -32,6 +33,8 @@ class ModernPdfViewer extends StatefulWidget {
   final Function(int wordCount, int lineCount)? onTextStatsChanged;
   final int? initialWordCount;
   final int? initialLineCount;
+  // 북마크·메모 저장용 식별 경로(변환된 PDF일 때 원본 파일 경로).
+  final String? storageId;
 
   const ModernPdfViewer({
     required this.filePath,
@@ -46,6 +49,7 @@ class ModernPdfViewer extends StatefulWidget {
     this.onTextStatsChanged,
     this.initialWordCount,
     this.initialLineCount,
+    this.storageId,
     super.key,
   });
 
@@ -98,6 +102,7 @@ class _ModernPdfViewerState extends State<ModernPdfViewer>
 
   // Tap detection - track pointer position and time to distinguish taps from scrolls
   Offset? _tapStartPosition;
+  double? _lastPointerY; // 마지막으로 누른 위치의 세로 좌표(뷰어 기준)
   DateTime? _tapStartTime;
 
   // Sidebar tabs: 0=Pages, 1=Search, 2=TOC, 3=Notes, 4=Bookmarks
@@ -264,14 +269,12 @@ class _ModernPdfViewerState extends State<ModernPdfViewer>
                             l10n.viewerSidebarNotes,
                             Icons.note,
                             3,
-                            comingSoon: true,
                           ),
                           _buildSidebarTab(
                             context,
                             l10n.viewerSidebarBookmarks,
                             Icons.bookmark,
                             4,
-                            comingSoon: true,
                           ),
                         ],
                       ),
@@ -289,10 +292,8 @@ class _ModernPdfViewerState extends State<ModernPdfViewer>
                       : _sidebarTab == 2
                           ? _buildTocTab()
                           : _sidebarTab == 3
-                              ? _buildComingSoonTab(l10n.viewerSidebarNotes,
-                                  l10n.viewerSidebarNotesDesc)
-                              : _buildComingSoonTab(l10n.viewerSidebarBookmarks,
-                                  l10n.viewerSidebarBookmarksDesc),
+                              ? _buildNotesTab()
+                              : _buildBookmarksTab(),
             ),
           ],
         );
@@ -949,7 +950,7 @@ class _ModernPdfViewerState extends State<ModernPdfViewer>
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Unable to open PDF',
+                    'PDF를 열 수 없습니다',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
@@ -1121,6 +1122,21 @@ class _ModernPdfViewerState extends State<ModernPdfViewer>
         },
         onGeneralTap: (context, controller, details) {
           if (details.type == PdfViewerGeneralTapType.tap) {
+            // [작동원리] 화면 위쪽 20%를 탭하면 이전 페이지, 아래쪽 20%를 탭하면
+            // 다음 페이지로 넘긴다. 가운데는 기존처럼 메뉴 표시/숨김.
+            // 손가락 위치는 아래 Listener가 기록한 _lastPointerY를 쓴다.
+            final h = (this.context.size?.height) ?? 0;
+            final y = _lastPointerY;
+            if (h > 0 && y != null) {
+              if (y < h * 0.2) {
+                goToPreviousPage();
+                return false;
+              }
+              if (y > h * 0.8) {
+                goToNextPage();
+                return false;
+              }
+            }
             widget.onTap?.call();
           }
           return false;
@@ -1132,11 +1148,19 @@ class _ModernPdfViewerState extends State<ModernPdfViewer>
     // and improve rendering performance. The colorFilter property changes dynamically
     // instead of rebuilding the entire widget tree.
     return RepaintBoundary(
-      child: ColorFiltered(
-        colorFilter: widget.invertColors
-            ? invertColorFilter
-            : const ColorFilter.mode(Colors.transparent, BlendMode.lighten),
-        child: viewer,
+      child: Listener(
+        // 탭 위치(위/아래 가장자리 판별용)만 기록하고 제스처는 가로채지 않는다.
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: (e) {
+          final box = context.findRenderObject();
+          _lastPointerY = box is RenderBox ? box.globalToLocal(e.position).dy : null;
+        },
+        child: ColorFiltered(
+          colorFilter: widget.invertColors
+              ? invertColorFilter
+              : const ColorFilter.mode(Colors.transparent, BlendMode.lighten),
+          child: viewer,
+        ),
       ),
     );
   }
@@ -1623,7 +1647,7 @@ class _ModernPdfViewerState extends State<ModernPdfViewer>
                           const Spacer(),
                           if (_searchResults.isNotEmpty)
                             Text(
-                              '${_searchResults.length} result${_searchResults.length == 1 ? '' : 's'}',
+                              '검색 결과 ${_searchResults.length}개',
                               style: Theme.of(context)
                                   .textTheme
                                   .labelSmall
@@ -1711,7 +1735,7 @@ class _ModernPdfViewerState extends State<ModernPdfViewer>
                               .withValues(alpha: 0.3)),
                       const SizedBox(height: 12),
                       Text(
-                        'Search in PDF',
+                        'PDF에서 검색',
                         style:
                             Theme.of(context).textTheme.titleMedium?.copyWith(
                                   color: Theme.of(context).colorScheme.primary,
@@ -1722,7 +1746,7 @@ class _ModernPdfViewerState extends State<ModernPdfViewer>
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 24),
                         child: Text(
-                          'Find text across all pages',
+                          '모든 페이지에서 텍스트 찾기',
                           style: Theme.of(context)
                               .textTheme
                               .bodySmall
@@ -1748,7 +1772,7 @@ class _ModernPdfViewerState extends State<ModernPdfViewer>
                                   .withValues(alpha: 0.5)),
                           const SizedBox(height: 12),
                           Text(
-                            'No results found',
+                            '검색 결과가 없습니다',
                             style: Theme.of(context)
                                 .textTheme
                                 .bodyMedium
@@ -1758,7 +1782,7 @@ class _ModernPdfViewerState extends State<ModernPdfViewer>
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Try a different search term',
+                            '다른 검색어를 입력해 보세요',
                             style:
                                 Theme.of(context).textTheme.bodySmall?.copyWith(
                                       color: Theme.of(context)
@@ -1880,14 +1904,14 @@ class _ModernPdfViewerState extends State<ModernPdfViewer>
                     .withValues(alpha: 0.5)),
             const SizedBox(height: 12),
             Text(
-              'No table of contents available',
+              '목차가 없습니다',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.outline,
                   ),
             ),
             const SizedBox(height: 4),
             Text(
-              'This PDF does not contain a table of contents',
+              '이 PDF에는 목차가 없습니다',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context)
                         .colorScheme
@@ -1907,6 +1931,174 @@ class _ModernPdfViewerState extends State<ModernPdfViewer>
       itemBuilder: (context, index) {
         return _buildOutlineNode(context, _outlineNodes![index], 0);
       },
+    );
+  }
+
+  // ───────── 북마크·메모 (사이드 메뉴) ─────────
+  // [작동원리] Hive 'simple_prefs' 상자에 파일별로 저장한다.
+  //   'bm|<식별경로>'   : 북마크한 페이지 번호 목록
+  //   'memo|<식별경로>' : {'페이지번호': '메모'}
+  // 하단 메뉴의 '북마크·메모'와 같은 저장소를 써서 서로 동기화된다.
+  List<int> _bms = <int>[];
+  Map<String, String> _notes = <String, String>{};
+  bool _bmLoaded = false;
+  String get _sid => widget.storageId ?? widget.filePath;
+
+  Future<void> _loadBm() async {
+    try {
+      final box = await Hive.openBox('simple_prefs');
+      final b = ((box.get('bm|$_sid') as List?)?.cast<int>() ?? <int>[]).toList();
+      final m = <String, String>{
+        for (final e in ((box.get('memo|$_sid') as Map?) ?? const {}).entries)
+          e.key.toString(): e.value.toString(),
+      };
+      if (mounted) {
+        setState(() {
+          _bms = b;
+          _notes = m;
+          _bmLoaded = true;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _saveBm() async {
+    try {
+      final box = await Hive.openBox('simple_prefs');
+      await box.put('bm|$_sid', _bms);
+      await box.put('memo|$_sid', _notes);
+    } catch (_) {}
+  }
+
+  Widget _buildBookmarksTab() {
+    if (!_bmLoaded) _loadBm();
+    final cur = _currentPage < 1 ? 1 : _currentPage;
+    final has = _bms.contains(cur);
+    final list = ([..._bms]..sort());
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonalIcon(
+              icon: Icon(has ? Icons.bookmark_remove : Icons.bookmark_add),
+              label: Text(has ? '$cur쪽 북마크 해제' : '$cur쪽 북마크 추가'),
+              onPressed: () async {
+                setState(() => has ? _bms.remove(cur) : _bms.add(cur));
+                await _saveBm();
+              },
+            ),
+          ),
+        ),
+        Expanded(
+          child: list.isEmpty
+              ? const Center(child: Text('북마크가 없습니다'))
+              : ListView(
+                  children: [
+                    for (final p in list)
+                      ListTile(
+                        leading: const Icon(Icons.bookmark),
+                        title: Text('$p쪽'),
+                        subtitle: _notes['$p'] == null
+                            ? null
+                            : Text(_notes['$p']!,
+                                maxLines: 1, overflow: TextOverflow.ellipsis),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete_outline),
+                          tooltip: '삭제',
+                          onPressed: () async {
+                            setState(() => _bms.remove(p));
+                            await _saveBm();
+                          },
+                        ),
+                        onTap: () => _goToPage(p),
+                      ),
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _editNote(int page) async {
+    final c = TextEditingController(text: _notes['$page'] ?? '');
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('$page쪽 메모'),
+        content: TextField(
+          controller: c,
+          autofocus: true,
+          maxLines: 5,
+          decoration: const InputDecoration(hintText: '메모를 입력하세요'),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('취소')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('저장')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    setState(() {
+      final t = c.text.trim();
+      if (t.isEmpty) {
+        _notes.remove('$page');
+      } else {
+        _notes['$page'] = t;
+      }
+    });
+    await _saveBm();
+  }
+
+  Widget _buildNotesTab() {
+    if (!_bmLoaded) _loadBm();
+    final cur = _currentPage < 1 ? 1 : _currentPage;
+    final keys = _notes.keys.map((k) => int.tryParse(k) ?? 0).where((p) => p > 0).toList()
+      ..sort();
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonalIcon(
+              icon: const Icon(Icons.edit_note),
+              label: Text(_notes.containsKey('$cur') ? '$cur쪽 메모 수정' : '$cur쪽 메모 쓰기'),
+              onPressed: () => _editNote(cur),
+            ),
+          ),
+        ),
+        Expanded(
+          child: keys.isEmpty
+              ? const Center(child: Text('메모가 없습니다'))
+              : ListView(
+                  children: [
+                    for (final p in keys)
+                      ListTile(
+                        leading: const Icon(Icons.sticky_note_2_outlined),
+                        title: Text('$p쪽'),
+                        subtitle: Text(_notes['$p'] ?? '',
+                            maxLines: 3, overflow: TextOverflow.ellipsis),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete_outline),
+                          tooltip: '삭제',
+                          onPressed: () async {
+                            setState(() => _notes.remove('$p'));
+                            await _saveBm();
+                          },
+                        ),
+                        onTap: () => _goToPage(p),
+                        onLongPress: () => _editNote(p),
+                      ),
+                  ],
+                ),
+        ),
+      ],
     );
   }
 
@@ -1951,7 +2143,7 @@ class _ModernPdfViewerState extends State<ModernPdfViewer>
             ),
             const SizedBox(height: 16),
             Text(
-              'This feature is under development and will be available in a future update.',
+              '이 기능은 개발 중이며 이후 업데이트에서 제공됩니다.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context)
                         .colorScheme

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:fadocx/l10n/app_localizations.dart';
-import 'package:fadocx/features/home/presentation/screens/main_shell.dart';
+import 'package:fadocx/features/simple/simple_documents_screen.dart';
 import 'package:fadocx/features/home/presentation/screens/documents_screen.dart';
 import 'package:fadocx/features/home/presentation/screens/browse_screen.dart';
 import 'package:fadocx/features/home/presentation/screens/trash_screen.dart';
@@ -106,7 +106,9 @@ GoRouter createGoRouter() {
         name: 'home',
         pageBuilder: (context, state) {
           log.d('Navigating to home');
-          return _fadeTransitionPage(context, state, const MainShell());
+          // 단순화: 시작 화면을 '폰의 문서 목록'으로 한다(기존 MainShell은 사용하지 않음).
+          return _fadeTransitionPage(
+              context, state, const SimpleDocumentsScreen());
         },
       ),
 

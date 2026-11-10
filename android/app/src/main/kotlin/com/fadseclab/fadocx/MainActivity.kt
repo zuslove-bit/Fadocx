@@ -107,7 +107,9 @@ class MainActivity : FlutterActivity() {
                     } catch (e: Exception) {
                         Log.e(TAG, "Reflection load failed", e)
                         logCauseChain("Reflection load failed", e)
-                        runOnUiThread { result.error("REFLECTION_ERROR", e.message, null) }
+                        // InvocationTargetException은 message가 비어 있으므로 실제 원인(cause)을 보여 준다.
+                        val root = e.cause ?: e
+                        runOnUiThread { result.error("REFLECTION_ERROR", "${root.javaClass.simpleName}: ${root.message}", null) }
                     }
                 }.start()
             }
@@ -241,6 +243,13 @@ class MainActivity : FlutterActivity() {
                                 } else {
                                     runOnUiThread { result.error("RENDER_FAILED", "Failed to render text page", null) }
                                 }
+                            }
+                            "convertToPdf" -> {
+                                val out = call.argument<String>("outPath")
+                                // Word/PPT는 그림 기반 PDF(한글 깨짐 방지), 그 외(엑셀 등)는 일반 PDF 내보내기
+                                val ok = out != null &&
+                                    (lokitWrapper.saveAsImagePdf(out) > 0 || lokitWrapper.saveAsPdf(out))
+                                runOnUiThread { result.success(ok) }
                             }
                             "extractText" -> {
                                 val text = lokitWrapper.extractText()

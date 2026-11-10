@@ -33,7 +33,8 @@ void main() async {
       log.i('📱 Theme loaded from Hive: $savedTheme');
     }
     if (settings?.language != null) {
-      savedLanguage = settings!.language;
+      // 단순 뷰어: 저장된 언어(기본 'en')를 쓰지 않고 항상 한국어로 고정한다.
+      savedLanguage = 'ko';
       log.i('🌐 Language loaded from Hive: $savedLanguage');
     }
     onboardingSeen = settings?.hasDismissedWelcome ?? false;
@@ -43,7 +44,9 @@ void main() async {
   }
 
   // Show onboarding on first launch or if user toggled re-show
-  if (!onboardingSeen || reShowOnboarding) {
+  // 단순 뷰어: 첫 실행 시작 안내(온보딩)는 생략한다.
+  // ignore: dead_code
+  if (false && (!onboardingSeen || reShowOnboarding)) {
     setInitialRoute(RouteNames.onboarding);
     log.i(
         '🚀 Showing onboarding (firstLaunch: ${!onboardingSeen}, reShow: $reShowOnboarding)');
@@ -129,7 +132,7 @@ class _MyAppState extends ConsumerState<MyApp> {
     final locale = ref.watch(localeProvider);
 
     return MaterialApp.router(
-      title: 'Fadocx',
+      title: '문서 뷰어',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,

@@ -111,12 +111,12 @@ class LOKitViewerNotifier extends Notifier<LOKitViewerState> {
     try {
       final ok = await initialize();
       if (!ok) {
-        state = state.copyWith(isLoading: false, error: 'Initialization failed');
+        state = state.copyWith(isLoading: false, error: '초기화에 실패했습니다');
         return false;
       }
       final info = await LOKitService.loadDocument(filePath);
       if (info == null) {
-        state = state.copyWith(isLoading: false, error: 'Failed to load document');
+        state = state.copyWith(isLoading: false, error: '문서를 불러오지 못했습니다');
         return false;
       }
       final type = (info['type'] as int?) ?? 0;
@@ -189,7 +189,7 @@ class LOKitViewerNotifier extends Notifier<LOKitViewerState> {
         );
         if (!state.isTextDocument) preloadAdjacentPages();
       } else {
-        state = state.copyWith(isRendering: false, error: 'Rendering returned null');
+        state = state.copyWith(isRendering: false, error: '문서를 그리지 못했습니다');
       }
     } catch (e) {
       _log.e('Render failed', error: e);

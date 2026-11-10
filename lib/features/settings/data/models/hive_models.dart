@@ -162,7 +162,7 @@ class HiveAppSettings {
   HiveAppSettings({
     String? id,
     this.theme = 'dark',
-    this.language = 'en',
+    this.language = 'ko',
     this.enableNotifications = true,
     this.hasImportedSampleFiles = false,
     bool? hasDismissedWelcome,

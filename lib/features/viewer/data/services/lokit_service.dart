@@ -141,6 +141,13 @@ class LOKitService {
       return null;
     }
   }
+  /// 열려 있는 문서를 PDF 파일로 저장한다(성공 여부 반환).
+  static Future<bool> convertToPdf(String outPath) async {
+    final result =
+        await _channel.invokeMethod<bool>('convertToPdf', {'outPath': outPath});
+    return result ?? false;
+  }
+
   static Future<bool> closeDocument() async {
     final result = await _channel.invokeMethod<bool>('closeDocument');
     return result ?? false;

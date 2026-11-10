@@ -229,10 +229,34 @@ class LOKitDocumentViewerState extends ConsumerState<LOKitDocumentViewer>
       },
       onPointerUp: (e) {
         if (_tapStartPosition != null && _tapStartTime != null) {
-          final distance = (e.position - _tapStartPosition!).distance;
+          final delta = e.position - _tapStartPosition!;
+          final distance = delta.distance;
           final duration = DateTime.now().difference(_tapStartTime!);
+          // [작동원리] 확대하지 않은 상태(배율 ≈ 1)에서만 동작한다.
+          //  - 빠른 탭: 화면 위쪽 20% → 이전 페이지, 아래쪽 20% → 다음 페이지, 가운데 → 메뉴 표시/숨김
+          //  - 스와이프: 위로 밀거나 왼쪽으로 밀면 다음 페이지, 아래로/오른쪽으로 밀면 이전 페이지
+          final zoom = _transformController?.value.getMaxScaleOnAxis() ?? 1.0;
+          final unzoomed = zoom < 1.08;
           if (duration.inMilliseconds < 200 && distance < 10) {
-            widget.onTap?.call();
+            final h = context.size?.height ?? 0;
+            final y = (context.findRenderObject() as RenderBox?)
+                    ?.globalToLocal(e.position)
+                    .dy ??
+                -1;
+            if (unzoomed && h > 0 && y >= 0 && y < h * 0.2) {
+              goToPreviousPage();
+            } else if (unzoomed && h > 0 && y > h * 0.8) {
+              goToNextPage();
+            } else {
+              widget.onTap?.call();
+            }
+          } else if (unzoomed && duration.inMilliseconds < 800) {
+            final dx = delta.dx, dy = delta.dy;
+            if (dy.abs() > dx.abs() && dy.abs() > 90) {
+              dy < 0 ? goToNextPage() : goToPreviousPage();
+            } else if (dx.abs() > dy.abs() && dx.abs() > 90) {
+              dx < 0 ? goToNextPage() : goToPreviousPage();
+            }
           }
         }
         _tapStartPosition = null;
@@ -297,8 +321,8 @@ class LOKitDocumentViewerState extends ConsumerState<LOKitDocumentViewer>
     final theme = Theme.of(context);
     final lokitState = ref.watch(lokitViewerProvider);
     final isInit = lokitState.isInitialized;
-    final label = isInit ? 'Preparing your document...' : 'Warming up the Fadocx engine...';
-    final sublabel = isInit ? 'Almost there' : 'Just a moment';
+    final label = isInit ? '문서를 준비하는 중입니다...' : '문서 엔진을 시작하는 중입니다...';
+    final sublabel = isInit ? '거의 다 됐습니다' : '잠시만 기다려 주세요';
     return Container(
       color: theme.scaffoldBackgroundColor,
       child: Center(
@@ -347,7 +371,7 @@ class LOKitDocumentViewerState extends ConsumerState<LOKitDocumentViewer>
               Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
               const SizedBox(height: 16),
               Text(
-                'Failed to render document',
+                '문서를 표시하지 못했습니다',
                 style: theme.textTheme.titleMedium,
               ),
               const SizedBox(height: 8),
