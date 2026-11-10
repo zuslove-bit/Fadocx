@@ -70,7 +70,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
   bool _convertTried = false;
   bool _converting = false;
   static const _convertible = {
-    'PPT', 'PPTX', 'ODP', 'DOCX', 'DOC', 'RTF', 'ODT', 'OTT'
+    'PPT', 'PPTX', 'ODP', 'DOCX', 'DOC', 'RTF', 'ODT', 'OTT', 'ODS'
   };
 
   Future<void> _convertToPdf() async {

@@ -269,6 +269,37 @@ UserInstallation=file://$cacheDir/lo_user
                     Document.DOCTYPE_PRESENTATION -> doc.parts
                     else -> 0
                 }
+                if (type == Document.DOCTYPE_SPREADSHEET) {
+                    // [작동원리] 엑셀: 시트마다 사용 영역을 가로 1400px로 맞추고, 세로로 A4 비율 조각으로
+                    // 잘라 PDF 페이지로 만든다(Word/PPT처럼 이어서 스크롤). 최대 300페이지.
+                    for (s in 0 until doc.parts) {
+                        doc.setPart(s)
+                        val tw = doc.documentWidth.toInt()
+                        val th = doc.documentHeight.toInt()
+                        if (tw <= 0 || th <= 0) continue
+                        val sliceTw = tw
+                        val sliceTh = (tw * 1.4).toInt().coerceAtLeast(1)
+                        var y = 0
+                        while (y < th && made < 300) {
+                            val h = minOf(sliceTh, th - y)
+                            val wPx = 1400
+                            val hPx = (wPx.toLong() * h / sliceTw).toInt().coerceIn(1, 4000)
+                            val buffer = ByteBuffer.allocateDirect(wPx * hPx * 4)
+                            doc.paintTile(buffer, wPx, hPx, 0, y, sliceTw, h)
+                            val bmp = Bitmap.createBitmap(wPx, hPx, Bitmap.Config.ARGB_8888)
+                            buffer.rewind()
+                            bmp.copyPixelsFromBuffer(buffer)
+                            val pw = wPx / 2
+                            val ph = (hPx / 2).coerceAtLeast(1)
+                            val page = pdf.startPage(PdfDocument.PageInfo.Builder(pw, ph, made + 1).create())
+                            page.canvas.drawBitmap(bmp, null, android.graphics.Rect(0, 0, pw, ph), android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG))
+                            pdf.finishPage(page)
+                            bmp.recycle()
+                            made++
+                            y += h
+                        }
+                    }
+                }
                 for (i in 0 until count) {
                     // 페이지 하나를 PNG 바이트로 그린다(가로 약 1400px 기준).
                     val bytes = (if (type == Document.DOCTYPE_TEXT) {

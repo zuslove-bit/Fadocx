@@ -95,7 +95,8 @@ void main() {
     final v = File('lib/features/viewer/presentation/screens/viewer_screen.dart').readAsStringSync();
     expect(v, contains('_convertToPdf'));
     final n = File('lib/features/viewer/presentation/providers/document_viewer_notifier.dart').readAsStringSync();
-    expect(n, contains('parseXLSX failed, falling back to LOKit'));
+    expect(n, contains("format: 'ODS'"));
+    expect(v, contains("'ODS'"));
     final m = File('lib/features/viewer/presentation/widgets/modern_pdf_viewer.dart').readAsStringSync();
     expect(m, contains('_buildBookmarksTab'));
     expect(m, contains('_buildNotesTab'));

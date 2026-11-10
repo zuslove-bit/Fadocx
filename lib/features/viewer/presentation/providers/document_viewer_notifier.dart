@@ -82,23 +82,14 @@ class DocumentViewerNotifier extends Notifier<ParsedDocumentState> {
         case 'xlsx':
         case 'xls':
           log.d('Routing to parseXLSX for: $extension');
-          // POI(java.awt.Color 등) 때문에 실패하는 파일이 있어, 실패하면
-          // LibreOffice 변환 경로(ODS 스텁 → PDF 변환)로 자동 전환한다.
-          try {
-            document = await repository.parseXLSX(
-              _filePath,
-              useNativeParsing: true,
-            );
-          } catch (e) {
-            log.w('parseXLSX failed, falling back to LOKit: $e');
-            document = ParsedDocumentEntity(
-              format: 'ODS',
-              sheets: const [],
-              sheetCount: 0,
-              parsedAt: DateTime.now(),
-              sourceFilePath: _filePath,
-            );
-          }
+          // [작동원리] 엑셀도 Word/PPT처럼 PDF로 변환해 이어서 스크롤하도록 ODS 스텁으로 보낸다.
+          document = ParsedDocumentEntity(
+            format: 'ODS',
+            sheets: const [],
+            sheetCount: 0,
+            parsedAt: DateTime.now(),
+            sourceFilePath: _filePath,
+          );
         case 'csv':
           log.d('Routing to native CSV parser');
           document = await repository.parseCSV(_filePath);
