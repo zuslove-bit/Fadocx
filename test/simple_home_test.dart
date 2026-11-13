@@ -187,6 +187,7 @@ void main() {
     expect(w, contains('permissions:\n  contents: read'));
     expect(RegExp(r'uses: [^\n]+@[0-9a-f]{40}').hasMatch(w), isTrue);
     expect(w, contains('APK 권한 점검'));
+    expect(w, contains("flutter-version: '3.47.9'"));
     final y = File('pubspec.yaml').readAsStringSync();
     expect(y, isNot(contains('ref: main')));
   });
