@@ -111,7 +111,7 @@ jobs:
       - name: HWP 연동 테스트
         run: flutter test test/hwp_support_test.dart test/korean_locale_test.dart test/simple_home_test.dart
 
-      # [보안 검증] 완성된 APK에 인터넷·카메라 권한이 없는지 확인한다(있으면 빌드 실패).
+      # [보안 검증] 완성된 APK에 인터넷·카메라·마이크 권한이 없는지 확인한다(있으면 빌드 실패).
       - name: APK 권한 점검
         run: |
           AAPT=$(ls -d "${ANDROID_HOME:-/usr/local/lib/android/sdk}"/build-tools/*/aapt2 2>/dev/null | sort -V | tail -1)
@@ -119,8 +119,8 @@ jobs:
           for f in build/app/outputs/flutter-apk/*.apk; do
             PERMS=$("$AAPT" dump permissions "$f")
             echo "$PERMS"
-            if echo "$PERMS" | grep -qE "android.permission.(INTERNET|CAMERA)"; then
-              echo "::error::금지된 권한(INTERNET/CAMERA)이 APK에 포함됨"; exit 1
+            if echo "$PERMS" | grep -qE "android.permission.(INTERNET|CAMERA|RECORD_AUDIO)"; then
+              echo "::error::금지된 권한(INTERNET/CAMERA/RECORD_AUDIO)이 APK에 포함됨"; exit 1
             fi
           done
 

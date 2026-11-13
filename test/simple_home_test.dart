@@ -175,6 +175,7 @@ void main() {
     final m = File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
     expect(m, contains('android.permission.INTERNET" tools:node="remove"'));
     expect(m, contains('android.permission.CAMERA" tools:node="remove"'));
+    expect(m, contains('android.permission.RECORD_AUDIO" tools:node="remove"'));
     expect(m, contains('android:allowBackup="false"'));
     expect(m, isNot(contains('category.BROWSABLE')));
     expect(File('android/app/src/main/res/xml/data_extraction_rules.xml').existsSync(), isTrue);

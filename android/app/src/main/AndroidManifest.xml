@@ -367,4 +367,6 @@
            (인터넷 권한이 없으면 문서 내용이 밖으로 새거나 악성 코드가 내려받아질 수 없다.) -->
       <uses-permission android:name="android.permission.CAMERA" tools:node="remove"/>
       <uses-permission android:name="android.permission.INTERNET" tools:node="remove"/>
+      <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove"/>
+      <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove"/>
  </manifest>
