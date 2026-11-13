@@ -170,4 +170,24 @@ void main() {
     final m = File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
     expect(m, contains('android.intent.category.LAUNCHER'));
   });
+
+  test('보안 하드닝: 권한·백업·파일 가져오기·CI 고정', () {
+    final m = File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
+    expect(m, contains('android.permission.INTERNET" tools:node="remove"'));
+    expect(m, contains('android.permission.CAMERA" tools:node="remove"'));
+    expect(m, contains('android:allowBackup="false"'));
+    expect(m, isNot(contains('category.BROWSABLE')));
+    expect(File('android/app/src/main/res/xml/data_extraction_rules.xml').existsSync(), isTrue);
+    final k = File('android/app/src/main/kotlin/com/fadseclab/fadocx/MainActivity.kt').readAsStringSync();
+    expect(k, contains('sanitizeFileName'));
+    expect(k, contains('canonicalPath.startsWith'));
+    expect(k, contains('maxBytes'));
+    expect(k, contains('safeFilePath'));
+    final w = File('.github/workflows/build-apk.yml').readAsStringSync();
+    expect(w, contains('permissions:\n  contents: read'));
+    expect(RegExp(r'uses: [^\n]+@[0-9a-f]{40}').hasMatch(w), isTrue);
+    expect(w, contains('APK 권한 점검'));
+    final y = File('pubspec.yaml').readAsStringSync();
+    expect(y, isNot(contains('ref: main')));
+  });
 }

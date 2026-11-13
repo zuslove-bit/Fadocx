@@ -4,7 +4,11 @@
         android:name=".FadocxApplication"
         android:label="${appName}"
         android:icon="@mipmap/ic_launcher"
-        android:largeHeap="true">
+        android:largeHeap="true"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:usesCleartextTraffic="false">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -32,7 +36,6 @@
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"/>
                 <data android:mimeType="application/vnd.ms-excel"/>
                 <data android:mimeType="text/csv"/>
@@ -43,7 +46,6 @@
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:mimeType="application/json"/>
                 <data android:mimeType="application/xml"/>
                 <data android:mimeType="text/xml"/>
@@ -54,7 +56,6 @@
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document"/>
                 <data android:mimeType="application/msword"/>
                 <!-- 한글 문서 -->
@@ -80,7 +81,6 @@
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:mimeType="application/vnd.openxmlformats-officedocument.presentationml.presentation"/>
                 <data android:mimeType="application/vnd.ms-powerpoint"/>
                 <data android:mimeType="application/vnd.oasis.opendocument.presentation"/>
@@ -90,7 +90,6 @@
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:mimeType="text/html"/>
                 <data android:mimeType="text/markdown"/>
                 <data android:mimeType="text/x-java"/>
@@ -105,7 +104,6 @@
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:mimeType="image/png"/>
                 <data android:mimeType="image/jpeg"/>
                 <data android:mimeType="image/gif"/>
@@ -121,7 +119,6 @@
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:mimeType="audio/aac"/>
                 <data android:mimeType="audio/mpeg"/>
                 <data android:mimeType="audio/wav"/>
@@ -138,7 +135,6 @@
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:mimeType="video/mp4"/>
                 <data android:mimeType="video/x-msvideo"/>
                 <data android:mimeType="video/x-matroska"/>
@@ -155,7 +151,6 @@
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:mimeType="application/atom+xml"/>
                 <data android:mimeType="application/rss+xml"/>
             </intent-filter>
@@ -165,7 +160,6 @@
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="content"/>
             </intent-filter>
 
@@ -173,7 +167,6 @@
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
                 <!-- Spreadsheets -->
                 <data android:scheme="file" android:host="*" android:pathPattern=".*\\.xlsx"/>
                 <data android:scheme="file" android:host="*" android:pathPattern=".*\\.xls"/>
@@ -247,7 +240,6 @@
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="content"/>
                 <data android:scheme="file"/>
                 <data android:host="*"/>
@@ -283,7 +275,6 @@
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="content"/>
                 <data android:scheme="file"/>
                 <data android:host="*"/>
@@ -372,6 +363,8 @@
           android:name="android.permission.WRITE_EXTERNAL_STORAGE"
           android:maxSdkVersion="29"
           tools:replace="android:maxSdkVersion"/>
-      <uses-permission android:name="android.permission.CAMERA"/>
-      <uses-permission android:name="android.permission.INTERNET"/>
+      <!-- [보안] 이 앱은 인터넷/카메라가 필요 없다. 플러그인이 선언해도 병합 단계에서 제거한다.
+           (인터넷 권한이 없으면 문서 내용이 밖으로 새거나 악성 코드가 내려받아질 수 없다.) -->
+      <uses-permission android:name="android.permission.CAMERA" tools:node="remove"/>
+      <uses-permission android:name="android.permission.INTERNET" tools:node="remove"/>
  </manifest>
