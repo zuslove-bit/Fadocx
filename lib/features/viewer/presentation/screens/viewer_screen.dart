@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:fadocx/services/file_intent_service.dart';
 import 'dart:io';
 
 import 'package:hive_flutter/hive_flutter.dart';
@@ -73,6 +74,26 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
     'PPT', 'PPTX', 'ODP', 'DOCX', 'DOC', 'RTF', 'ODT', 'OTT', 'ODS'
   };
 
+  // [작동원리] 변환 결과가 온전한 PDF인지 확인한다(시작이 %PDF-, 끝부분에 %%EOF).
+  bool _isValidPdf(File f) {
+    try {
+      if (!f.existsSync() || f.lengthSync() < 100) return false;
+      final raf = f.openSync();
+      try {
+        final head = String.fromCharCodes(raf.readSync(5));
+        final len = raf.lengthSync();
+        final n = len < 1024 ? len : 1024;
+        raf.setPositionSync(len - n);
+        final tail = String.fromCharCodes(raf.readSync(n));
+        return head == '%PDF-' && tail.contains('%%EOF');
+      } finally {
+        raf.closeSync();
+      }
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> _convertToPdf() async {
     String? out;
     try {
@@ -80,14 +101,19 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
       final st = File(widget.filePath).statSync();
       final h = widget.filePath.codeUnits.fold<int>(7, (a, c) => (a * 31 + c) & 0x7fffffff);
       final f = File('${tmp.path}/lo2_pdf_${h}_${st.modified.millisecondsSinceEpoch}_${st.size}.pdf');
-      if (f.existsSync() && f.lengthSync() > 0) {
+      if (_isValidPdf(f)) {
         out = f.path;
       } else {
+        if (f.existsSync()) f.deleteSync(); // 깨진 캐시 제거
         await LOKitService.init();
         await LOKitService.loadDocument(widget.filePath);
         final ok = await LOKitService.convertToPdf(f.path);
         await LOKitService.closeDocument();
-        if (ok) out = f.path;
+        if (ok && _isValidPdf(f)) {
+          out = f.path;
+        } else if (f.existsSync()) {
+          f.deleteSync(); // 깨진 PDF는 버리고 기존 LOKit 화면으로 대체
+        }
       }
     } catch (e) {
       _log.w('PDF 변환 실패, 기존 LOKit 화면으로 대체: $e');
@@ -656,8 +682,11 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
           .read(recentFilesMutatorProvider)
           .updateDateOpened(widget.filePath);
 
+      final staleDoc = docState.document != null &&
+          docState.document!.sourceFilePath.isNotEmpty &&
+          docState.document!.sourceFilePath != widget.filePath;
       if (!docState.isLoading &&
-          docState.document == null &&
+          (docState.document == null || staleDoc) &&
           !docState.hasError) {
         _log.d('Loading document: ');
         ref
@@ -725,6 +754,27 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
     super.dispose();
   }
 
+  // [작동원리] 문서를 닫는 공통 동작. 다른 앱(내 파일 등)에서 연 문서(ext=1)는 앱을 종료해
+  // 원래 앱으로 돌아가고, 앱 안 목록에서 연 문서는 평소처럼 목록으로 돌아간다.
+  void _closeViewer() {
+    final external = ExternalOpen.active ||
+        GoRouterState.of(context).uri.queryParameters['ext'] == '1';
+    ExternalOpen.active = false;
+    // 화면(경로)을 먼저 닫아 문서 상태를 비운 뒤, 외부 앱에서 연 경우에만 앱을 종료한다.
+    // (화면을 남겨 둔 채 종료하면 다음 파일이 이전 문서 상태로 열리는 문제가 있었다.)
+    if (context.canPop()) {
+      context.pop();
+    }
+    if (external) {
+      // 네이티브에서 직전 앱으로 확실히 돌려보낸다(실패 시 일반 종료로 대체).
+      const MethodChannel('com.fadseclab.fadocx/file_intent')
+          .invokeMethod('closeToPrevious')
+          .catchError((_) {
+        SystemNavigator.pop();
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final docState = ref.watch(documentViewerProvider);
@@ -735,7 +785,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) {
-          context.pop();
+          _closeViewer();
         }
       },
       child: Scaffold(
@@ -931,6 +981,15 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
         key: _pdfViewerKey,
         filePath: _pdfPath ?? widget.filePath,
         storageId: widget.filePath,
+        // 변환한 PDF가 열리지 않으면 캐시를 지우고 기존 LOKit 화면으로 대체한다.
+        onLoadFailed: _pdfPath == null
+            ? null
+            : () {
+                try {
+                  File(_pdfPath!).deleteSync();
+                } catch (_) {}
+                if (mounted) setState(() => _pdfPath = null);
+              },
         fileName: widget.fileName,
         invertColors: _invertColors,
         textMode: _textMode,
@@ -1357,7 +1416,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
                                     ? _chevronRightNoMirror
                                     : _chevronLeftNoMirror,
                               ),
-                              onPressed: () => context.pop(),
+                              onPressed: _closeViewer,
                               tooltip: _l10n.back,
                               iconSize: 20,
                               constraints: const BoxConstraints(
@@ -1377,7 +1436,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen>
                                 IconButton(
                                   icon: const Icon(Icons.close),
                                   tooltip: '문서 닫기',
-                                  onPressed: () => context.pop(),
+                                  onPressed: _closeViewer,
                                   iconSize: 24,
                                   constraints: const BoxConstraints(
                                       minWidth: 40, minHeight: 40),

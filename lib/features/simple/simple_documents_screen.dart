@@ -13,6 +13,7 @@ import 'dart:isolate';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:fadocx/services/file_intent_service.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -321,6 +322,7 @@ class _SimpleDocumentsScreenState extends ConsumerState<SimpleDocumentsScreen>
     _remember(d).then((_) {
       if (mounted) setState(() {});
     });
+    ExternalOpen.active = false; // 앱 안 목록에서 연 문서
     context.push(
         '${RouteNames.viewer}?path=${Uri.encodeComponent(d.path)}&name=${Uri.encodeComponent(d.name)}');
   }
@@ -579,6 +581,23 @@ class _SimpleDocumentsScreenState extends ConsumerState<SimpleDocumentsScreen>
             tooltip: '새로고침',
             icon: const Icon(Icons.refresh),
             onPressed: _load,
+          ),
+          // [작동원리] 앱 정보 대화상자: 앱 이름·버전·만든이를 보여 준다.
+          IconButton(
+            tooltip: '앱 정보',
+            icon: const Icon(Icons.info_outline),
+            onPressed: () => showAboutDialog(
+              context: context,
+              applicationName: '문서 뷰어',
+              applicationVersion: '1.0.0',
+              applicationIcon: const Icon(Icons.description, size: 40),
+              children: const [
+                SizedBox(height: 8),
+                Text('만든이: by 함석현'),
+                SizedBox(height: 4),
+                Text('한글·Word·Excel·PowerPoint·PDF 문서를 보는 개인용 뷰어입니다.'),
+              ],
+            ),
           ),
         ],
       ),

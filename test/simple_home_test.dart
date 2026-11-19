@@ -69,7 +69,7 @@ void main() {
 
   test('prod 아이콘 배경이 새 색으로 바뀌었다', () {
     final c = File('android/app/src/prod/res/values/colors.xml').readAsStringSync();
-    expect(c, contains('#15478C'));
+    expect(c, contains('#2E2A8F'));
   });
 
   test('릴리스 빌드에서 코드 축소가 꺼져 있고 오류 원인을 보여 준다', () {
@@ -109,5 +109,87 @@ void main() {
     expect(k, contains('fun saveAsImagePdf'));
     final m = File('android/app/src/main/kotlin/com/fadseclab/fadocx/MainActivity.kt').readAsStringSync();
     expect(m, contains('saveAsImagePdf(out) > 0'));
+  });
+
+  test('제작자 표기', () {
+    final h = File('lib/features/simple/simple_documents_screen.dart').readAsStringSync();
+    expect(h, contains('by 함석현'));
+    expect(h, contains("tooltip: '앱 정보'"));
+    expect(h, contains('showAboutDialog'));
+  });
+
+  test('새 아이콘·스플래시 색상', () {
+    final c = File('android/app/src/prod/res/values/colors.xml').readAsStringSync();
+    expect(c, contains('#2E2A8F'));
+    final v = File('android/app/src/main/res/values-v31/styles.xml').readAsStringSync();
+    expect(v, contains('#1E1B4B'));
+  });
+
+  test('외부 앱에서 연 문서는 닫으면 원래 앱으로 돌아간다', () {
+    final m = File('lib/main.dart').readAsStringSync();
+    expect(m, contains('&ext=1'));
+    final v = File('lib/features/viewer/presentation/screens/viewer_screen.dart').readAsStringSync();
+    expect(v, contains('_closeViewer'));
+    expect(v, contains('closeToPrevious'));
+    expect(v, contains('SystemNavigator.pop()'));
+    expect(v, isNot(contains('onPressed: () => context.pop()')));
+    expect(v, contains('context.canPop()'));
+    expect(m, contains("_router.go('/')"));
+    expect(v, contains('staleDoc'));
+  });
+
+  test('변환 PDF 검증·원자적 쓰기·엑셀 메모리 보호', () {
+    final v = File('lib/features/viewer/presentation/screens/viewer_screen.dart').readAsStringSync();
+    expect(v, contains('_isValidPdf'));
+    final k = File('android/app/src/main/kotlin/com/fadseclab/fadocx/LOKitWrapper.kt').readAsStringSync();
+    expect(k, contains('.tmp'));
+    expect(k, contains('made >= 120'));
+  });
+
+  test('변환 PDF 열기 실패 시 기존 화면으로 대체', () {
+    final m = File('lib/features/viewer/presentation/widgets/modern_pdf_viewer.dart').readAsStringSync();
+    expect(m, contains('onLoadFailed'));
+    final v = File('lib/features/viewer/presentation/screens/viewer_screen.dart').readAsStringSync();
+    expect(v, contains('onLoadFailed'));
+  });
+
+  test('외부 문서 여부는 URL이 아닌 전역 플래그로도 판단', () {
+    final f = File('lib/services/file_intent_service.dart').readAsStringSync();
+    expect(f, contains('class ExternalOpen'));
+    final v = File('lib/features/viewer/presentation/screens/viewer_screen.dart').readAsStringSync();
+    expect(v, contains('ExternalOpen.active'));
+    final h = File('lib/features/simple/simple_documents_screen.dart').readAsStringSync();
+    expect(h, contains('ExternalOpen.active = false'));
+  });
+
+  test('닫기: 열어 준 앱(referrer)으로 복귀', () {
+    final k = File('android/app/src/main/kotlin/com/fadseclab/fadocx/MainActivity.kt').readAsStringSync();
+    expect(k, contains('externalReferrerPkg'));
+    expect(k, contains('getLaunchIntentForPackage'));
+    expect(k, isNot(contains('finishAndRemoveTask')));
+    final m = File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
+    expect(m, contains('android.intent.category.LAUNCHER'));
+  });
+
+  test('보안 하드닝: 권한·백업·파일 가져오기·CI 고정', () {
+    final m = File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
+    expect(m, contains('android.permission.INTERNET" tools:node="remove"'));
+    expect(m, contains('android.permission.CAMERA" tools:node="remove"'));
+    expect(m, contains('android.permission.RECORD_AUDIO" tools:node="remove"'));
+    expect(m, contains('android:allowBackup="false"'));
+    expect(m, isNot(contains('category.BROWSABLE')));
+    expect(File('android/app/src/main/res/xml/data_extraction_rules.xml').existsSync(), isTrue);
+    final k = File('android/app/src/main/kotlin/com/fadseclab/fadocx/MainActivity.kt').readAsStringSync();
+    expect(k, contains('sanitizeFileName'));
+    expect(k, contains('canonicalPath.startsWith'));
+    expect(k, contains('maxBytes'));
+    expect(k, contains('safeFilePath'));
+    final w = File('.github/workflows/build-apk.yml').readAsStringSync();
+    expect(w, contains('permissions:\n  contents: read'));
+    expect(RegExp(r'uses: [^\n]+@[0-9a-f]{40}').hasMatch(w), isTrue);
+    expect(w, contains('APK 권한 점검'));
+    expect(w, contains("flutter-version: '3.47.9'"));
+    final y = File('pubspec.yaml').readAsStringSync();
+    expect(y, isNot(contains('ref: main')));
   });
 }

@@ -28,6 +28,8 @@ class ModernPdfViewer extends StatefulWidget {
   final VoidCallback? onInvertToggle;
   final VoidCallback? onTextModeToggle;
   final VoidCallback? onTap;
+  // [작동원리] PDF를 열지 못했을 때 한 번 호출된다(변환본이면 기존 화면으로 대체하는 데 사용).
+  final VoidCallback? onLoadFailed;
   final Function(int currentPage, int totalPages)? onPageChanged;
   final VoidCallback? onSearchHighlight;
   final Function(int wordCount, int lineCount)? onTextStatsChanged;
@@ -44,6 +46,7 @@ class ModernPdfViewer extends StatefulWidget {
     this.onInvertToggle,
     this.onTextModeToggle,
     this.onTap,
+    this.onLoadFailed,
     this.onPageChanged,
     this.onSearchHighlight,
     this.onTextStatsChanged,
@@ -59,6 +62,7 @@ class ModernPdfViewer extends StatefulWidget {
 
 class _ModernPdfViewerState extends State<ModernPdfViewer>
     with TickerProviderStateMixin {
+  bool _loadFailedNotified = false;
   static final log = Logger(
     printer: PrettyPrinter(
       methodCount: 0,
@@ -1061,6 +1065,11 @@ class _ModernPdfViewerState extends State<ModernPdfViewer>
         errorBannerBuilder: (context, error, stackTrace, documentRef) {
           log.e('PdfViewer failed to load document',
               error: error, stackTrace: stackTrace);
+          if (widget.onLoadFailed != null && !_loadFailedNotified) {
+            _loadFailedNotified = true;
+            WidgetsBinding.instance
+                .addPostFrameCallback((_) => widget.onLoadFailed?.call());
+          }
           return _buildPdfErrorBanner(context, error);
         },
         onPageChanged: (pageNumber) {

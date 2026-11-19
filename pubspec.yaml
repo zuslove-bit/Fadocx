@@ -71,7 +71,9 @@ dependencies:
   flutter_rhwp:
     git:
       url: https://github.com/JAICHANGPARK/flutter_rhwp.git
-      ref: main
+      # [보안] 외부 저장소의 새 코드가 모르는 사이 섞이지 않도록 특정 커밋으로 고정한다.
+      # (코드를 직접 검토한 것은 아니며, 업데이트하려면 이 값을 의식적으로 바꿔야 한다.)
+      ref: 0a69a4b4e661fa3e49337137963b6350898c602d
 
   # =========================
   # XLSX

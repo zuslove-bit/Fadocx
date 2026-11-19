@@ -119,6 +119,32 @@ class MainActivity : FlutterActivity() {
                 if (call.method == "getOpenFileIntent") {
                     result.success(pendingFileIntent?.let { mapOf("filePath" to it) })
                     pendingFileIntent = null
+                } else if (call.method == "closeToPrevious") {
+                    // [작동원리] 문서를 열어 준 앱(카카오톡 등)을 앞으로 불러온 뒤 이 화면을 닫는다.
+                    // 열어 준 앱을 알 수 없으면 안드로이드 기본 '뒤로' 동작(작업의 맨 아래면 뒤로 보내기,
+                    // 아니면 닫기)으로 대신한다.
+                    result.success(true)
+                    var launched = false
+                    val pkg = externalReferrerPkg
+                    if (pkg != null && pkg != packageName && !pkg.startsWith("android") &&
+                        pkg != "com.android.intentresolver") {
+                        try {
+                            val li = packageManager.getLaunchIntentForPackage(pkg)
+                            if (li != null) {
+                                li.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                startActivity(li)
+                                launched = true
+                            }
+                        } catch (e: Throwable) {
+                            Log.w(TAG, "launch referrer failed: $pkg", e)
+                        }
+                    }
+                    externalReferrerPkg = null
+                    if (!launched && isTaskRoot) {
+                        moveTaskToBack(true)
+                    } else {
+                        finish()
+                    }
                 } else {
                     result.notImplemented()
                 }
@@ -402,8 +428,27 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    // [작동원리] 이 문서를 열어 준 앱(카카오톡·내 파일 등)의 패키지명. 닫을 때 그 앱으로 되돌아가는 데 쓴다.
+    private var externalReferrerPkg: String? = null
+
+    private fun rememberReferrer() {
+        try {
+            if (Build.VERSION.SDK_INT >= 22) {
+                val r = referrer
+                val pkg = if (r != null && r.scheme == "android-app") r.host else null
+                if (pkg != null && pkg != packageName) {
+                    externalReferrerPkg = pkg
+                    Log.i(TAG, "External referrer: $pkg")
+                }
+            }
+        } catch (e: Throwable) {
+            Log.w(TAG, "referrer unavailable", e)
+        }
+    }
+
     private fun handleFileIntent(intent: Intent?) {
         if (intent == null) return
+        rememberReferrer()
         Thread {
             try {
                 when (intent.action) {
@@ -460,7 +505,7 @@ class MainActivity : FlutterActivity() {
     /// For file:// URIs, returns the direct path.
     private fun getFilePathFromUri(uri: Uri): String? {
         return when {
-            uri.scheme == "file" -> uri.path
+            uri.scheme == "file" -> safeFilePath(uri.path)
             uri.scheme == "content" -> importContentUri(uri)
             else -> {
                 Log.w(TAG, "Unsupported URI scheme: ${uri.scheme}")
@@ -495,12 +540,43 @@ class MainActivity : FlutterActivity() {
     ///
     /// The filePath returned matches what Flutter's StorageService expects for
     /// managed files, so cacheDocument() will see it as already-managed and skip.
+    // [보안] file:// 로 들어온 경로는 이 앱의 비공개 데이터(설정·캐시 등)를 가리키면 거부한다.
+    private fun safeFilePath(path: String?): String? {
+        if (path == null) return null
+        return try {
+            val real = File(path).canonicalFile
+            val privateRoots = listOfNotNull(filesDir.parentFile?.canonicalFile, cacheDir.canonicalFile)
+            if (!real.isFile || privateRoots.any { real.path.startsWith(it.path + File.separator) }) {
+                Log.w(TAG, "Rejected file path")
+                null
+            } else {
+                real.path
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    // [보안] 파일 이름에서 경로 문자(../ 등)·제어문자를 없애 '앱 폴더 밖'에 쓰이지 않게 한다.
+    private fun sanitizeFileName(raw: String): String {
+        var n = raw.substringAfterLast('/').substringAfterLast('\\')
+        n = n.filter { it.code >= 32 && it != ':' && it != '*' && it != '?' && it != '"' && it != '<' && it != '>' && it != '|' }
+        n = n.trim().trimStart('.')
+        if (n.length > 150) {
+            val ext = n.substringAfterLast('.', "")
+            n = n.take(120) + if (ext.isNotEmpty() && ext.length <= 8) ".$ext" else ""
+        }
+        return n
+    }
+
     private fun importContentUri(uri: Uri): String? {
         return try {
             val inputStream = contentResolver.openInputStream(uri) ?: return null
 
-            val fileName = getFileNameFromUri(uri)
-                ?: "import_${System.currentTimeMillis()}.${getExtensionFromMimeType(uri)}"
+            val rawName = getFileNameFromUri(uri)
+            val safeName = if (rawName != null) sanitizeFileName(rawName) else ""
+            val fileName = if (safeName.isNotEmpty()) safeName
+                else "import_${System.currentTimeMillis()}.${getExtensionFromMimeType(uri)}"
             val ext = fileName.substringAfterLast('.', "").lowercase()
             val category = getCategoryFromExtension(ext)
 
@@ -513,10 +589,32 @@ class MainActivity : FlutterActivity() {
 
             // Avoid overwriting existing files (append counter)
             val finalFile = resolveFileName(destFile)
+            // [보안] 최종 위치가 분류 폴더 안인지 한 번 더 확인한다.
+            if (!finalFile.canonicalPath.startsWith(categoryDir.canonicalPath + File.separator)) {
+                inputStream.close()
+                Log.w(TAG, "Rejected import outside category dir")
+                return null
+            }
+            // [보안] 너무 큰 파일(저장공간 고갈 공격)은 중단한다(최대 1GB).
+            val maxBytes = 1024L * 1024L * 1024L
+            var total = 0L
+            var tooBig = false
             FileOutputStream(finalFile).use { output ->
-                inputStream.copyTo(output)
+                val buf = ByteArray(64 * 1024)
+                while (true) {
+                    val n = inputStream.read(buf)
+                    if (n < 0) break
+                    total += n
+                    if (total > maxBytes) { tooBig = true; break }
+                    output.write(buf, 0, n)
+                }
             }
             inputStream.close()
+            if (tooBig) {
+                finalFile.delete()
+                Log.w(TAG, "Rejected oversized import")
+                return null
+            }
 
             Log.i(TAG, "Imported content URI to managed storage: ${finalFile.absolutePath}")
             finalFile.absolutePath
